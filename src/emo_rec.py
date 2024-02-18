@@ -28,8 +28,11 @@ class EmoRec:
     def __init__(self):
         root_dir = Path(__file__).resolve().parent.parent
         # ##################################### Свойства
-        model_name = 'resnet50' # resnet50 vgg19
-        path_to_pr_model = str(root_dir / 'models' / 'k01.23 13-28-01.pth') # k01.23 08-47-18.pth
+        model_name_photo = 'resnet50' # resnet50 vgg19
+        model_name_video = 'resnet50' # resnet50 vgg19
+        
+        path_to_pr_model_photo = str(root_dir / 'models' / 'k01.23 13-28-01.pth') # k01.23 08-47-18.pth
+        path_to_pr_model_video = str(root_dir / 'models' / 'k01.23 13-28-01.pth') # k01.23 08-47-18.pth
         
         self.hist_len = 2
         self.total_eval_ever_n_frames = 8
@@ -49,31 +52,13 @@ class EmoRec:
         
         self.output_file_path = Path(r'./output/')
         self.output_file_name = Path(r'output.mp4')
-        # ##################################### Свойства
+        # ##################################### Свойства 
 
 
 
-        # Инициализация модели
-        num_classes = len(self.emotion_labels)
+        self.model_photo = self.init_model(model_name_photo, path_to_pr_model_photo)
+        self.model_video = self.init_model(model_name_video, path_to_pr_model_video)
 
-        if model_name == 'resnet50':
-            self.model = models.resnet50()
-            self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
-
-        if model_name == 'vgg19':
-            self.model = models.vgg19()
-            self.model.classifier[6] = nn.Linear(self.model.classifier[6].in_features, num_classes)
-
-        if model_name == 'vgg_face_dag':
-            self.model = vgg_face_dag()
-            self.model.fc8 = nn.Linear(self.model.fc8.in_features, num_classes)
-            # with open(path_to_pr_model, 'rb') as file:
-            #     model = pickle.load(file)
-
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
-        self.model.load_state_dict(torch.load(path_to_pr_model)) 
-        self.model.to(self.device)
-        
         path_to_face_finder_model = str(root_dir / 'models' / 'haarcascade_frontalface_default.xml')
         self.face_finder = cv2.CascadeClassifier(path_to_face_finder_model) 
         print('EmoRec init successful')
@@ -81,14 +66,45 @@ class EmoRec:
 
 # ################################################################################################################
 
-    def predict(self, clipped_face_frame):
+    def init_model(self, model_name, path_to_pr_model):
+        
+        num_classes = len(self.emotion_labels)
+        
+        if model_name == 'resnet50':
+            model = models.resnet50()
+            model.fc = nn.Linear(model.fc.in_features, num_classes)
+
+        if model_name == 'vgg19':
+            model = models.vgg19()
+            model.classifier[6] = nn.Linear(model.classifier[6].in_features, num_classes)
+
+        if model_name == 'vgg_face_dag':
+            model = vgg_face_dag()
+            model.fc8 = nn.Linear(model.fc8.in_features, num_classes)
+            # with open(path_to_pr_model, 'rb') as file:
+            #     model = pickle.load(file)
+
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
+        model.load_state_dict(torch.load(path_to_pr_model)) 
+        model.to(self.device)
+        
+        return model
+
+
+
+    def predict(self, clipped_face_frame, mode='photo'):
         
         clipped_face_tensor = self.image_transforms(clipped_face_frame).unsqueeze(0).clone().detach()
         clipped_face_tensor = clipped_face_tensor.to(self.device)
         
-        self.model.eval()
+        if mode == 'photo':
+            model = self.model_photo
+        elif mode == 'video':
+            model = self.model_video
+        
+        model.eval()
         with torch.no_grad():
-            prediction = self.model.forward(clipped_face_tensor)
+            prediction = model.forward(clipped_face_tensor)
         
         return prediction.cpu()
 
@@ -122,7 +138,7 @@ class EmoRec:
             
             # Если детектор нашёл лица
             if clipped_face_frame.size != 0: 
-                prediction = self.predict(clipped_face_frame)
+                prediction = self.predict(clipped_face_frame, 'photo')
                 result_emotion_label = self.emotion_labels[int(np.argmax(prediction))]
                 
                 # Прописывание значка эмоции
@@ -231,7 +247,7 @@ class EmoRec:
                     if clipped_face_frame.size != 0: 
                         
                         if frames_counter % self.total_eval_ever_n_frames == 0 or frames_counter == 1: # можно не каждый кадр модели отдавать модели, чтоб урать мелькание нарисованных эмоций и снизить нагрузку
-                            prediction = self.predict(clipped_face_frame)
+                            prediction = self.predict(clipped_face_frame, 'photo')
                             # prediction = 1
 
                             faces_emo_hist.append(int(np.argmax(prediction)))
@@ -243,7 +259,8 @@ class EmoRec:
                             
                             
                         elif frames_counter % self.total_eval_ever_n_frames in range(8 - self.hist_len, 8): 
-                            prediction = self.predict(clipped_face_frame)
+                            prediction = self.predict(clipped_face_frame, 'photo')
+                            # prediction = 1
                             
                             faces_emo_hist.append(int(np.argmax(prediction)))
                         
