@@ -28,8 +28,8 @@ class EmoRec:
     def __init__(self):
         root_dir = Path(__file__).resolve().parent.parent
         # ##################################### Свойства
-        model_name = 'vgg19'
-        path_to_pr_model = str(root_dir / 'models' / 'k01.23 08-47-18.pth')
+        model_name = 'resnet50' # resnet50 vgg19
+        path_to_pr_model = str(root_dir / 'models' / 'k01.23 13-28-01.pth') # k01.23 08-47-18.pth
         
         self.hist_len = 2
         self.total_eval_ever_n_frames = 8
@@ -43,14 +43,12 @@ class EmoRec:
                     std =[0.229, 0.224, 0.225]
             )
         ])
-        
-        self.compress_video_fps = 20
 
         # self.emotion_labels = {0: "anger", 1: "contempt", 2: "disgust", 3: "fear", 4: "happy", 5: "neutral", 6: "sad", 7: "surprise"}
         self.emotion_labels = {0: "disgust", 1: "contempt", 2: "anger", 3: "fear", 4: "happy", 5: "neutral", 6: "sad", 7: "surprise"}
         
         self.output_file_path = Path(r'./output/')
-        self.output_file_name = Path(r'.output.mp4')
+        self.output_file_name = Path(r'output.mp4')
         # ##################################### Свойства
 
 
@@ -73,7 +71,7 @@ class EmoRec:
             #     model = pickle.load(file)
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
-        self.model.load_state_dict(torch.load(path_to_pr_model)) # обученная модель для классификации эмоций
+        self.model.load_state_dict(torch.load(path_to_pr_model)) 
         self.model.to(self.device)
         
         path_to_face_finder_model = str(root_dir / 'models' / 'haarcascade_frontalface_default.xml')
@@ -142,7 +140,7 @@ class EmoRec:
 
 # ##########################################################
 
-    def make_video(self, file_content, file_id,  is_compress_result=True):
+    def make_video(self, file_content, file_id,  is_compress_result=False, compress_video_fps=20):
         
         try:
             
@@ -164,12 +162,12 @@ class EmoRec:
             all_frames_num = int(input_video.get(cv2.CAP_PROP_FRAME_COUNT))
 
 
-            output_file_path = str(self.output_file_path / self.output_file_name)
+            output_file_path = self.output_file_path / self.output_file_name
         
             # VideoWriter - сохранятор нового видео
             if is_compress_result:
                 codec = cv2.VideoWriter_fourcc(*'XVID')
-                output_video = cv2.VideoWriter(str(output_file_path), codec, self.compress_video_fps, (width, height))
+                output_video = cv2.VideoWriter(str(output_file_path), codec, compress_video_fps, (width, height))
             else:
                 fps = input_video.get(cv2.CAP_PROP_FPS)
                 codec = cv2.VideoWriter_fourcc(*'mp4v')
@@ -186,7 +184,6 @@ class EmoRec:
             
             # Инициализация параметров хранения недавней истории эмоций на лицах
             faces_emo_hist = deque(maxlen=self.hist_len + 1)
-            self.total_eval_ever_n_frames = 8
             
             frames_counter = 0
 
@@ -235,6 +232,7 @@ class EmoRec:
                         
                         if frames_counter % self.total_eval_ever_n_frames == 0 or frames_counter == 1: # можно не каждый кадр модели отдавать модели, чтоб урать мелькание нарисованных эмоций и снизить нагрузку
                             prediction = self.predict(clipped_face_frame)
+                            # prediction = 1
 
                             faces_emo_hist.append(int(np.argmax(prediction)))
                             most_common_pred = get_most_common_elem(faces_emo_hist)
@@ -263,9 +261,8 @@ class EmoRec:
             output_video.release()
             
             
-            with open(output_file_path, 'rb') as f:
+            with open(str(output_file_path), 'rb') as f:
                 result = f.read()
-            
-            os.remove(output_file_path)
 
-            return result
+            return result, str(output_file_path)
+
