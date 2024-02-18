@@ -1,20 +1,15 @@
-
-
-
 data
 
 models/archive
-models/k01.23 08-47-18.pth
+models/k01.23_08-47-18.pth
 
-input/
+input
 output
 wandb
 history
 
-
-__pycache__
-
-
 client_secrets.json
 
 
+.env
+__pycache__

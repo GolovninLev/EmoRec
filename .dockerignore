@@ -1,0 +1,57 @@
+data
+
+models/archive
+models/k01.23_08-47-18.pth
+
+input
+output
+wandb
+history
+
+client_secrets.json
+
+
+.env
+__pycache__
+
+
+# временные файлы
+*~
+*.swp
+*.bak
+
+# файлы и каталоги сред разработки
+.vscode/
+.idea/
+*.pyc
+__pycache__/
+
+# локальные виртуальные среды
+venv/
+env/
+pip-log.txt
+
+# скомпилированные файлы
+*.pyc
+*.pyo
+*.pyd
+__pycache__
+
+# локальные данные и настройки
+.env
+.git/
+.gitignore
+.dockerignore
+*.log
+
+# временные файлы и каталоги
+*.log*
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# файлы секретов
+.secrets/

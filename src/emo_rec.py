@@ -31,8 +31,8 @@ class EmoRec:
         model_name_photo = 'resnet50' # resnet50 vgg19
         model_name_video = 'resnet50' # resnet50 vgg19
         
-        path_to_pr_model_photo = str(root_dir / 'models' / 'k01.23 13-28-01.pth') # k01.23 08-47-18.pth
-        path_to_pr_model_video = str(root_dir / 'models' / 'k01.23 13-28-01.pth') # k01.23 08-47-18.pth
+        path_to_pr_model_photo = str(root_dir / 'models' / 'k01.23_13-28-01.pth') # k01.23_08-47-18.pth
+        path_to_pr_model_video = str(root_dir / 'models' / 'k01.23_13-28-01.pth') # k01.23_08-47-18.pth
         
         self.hist_len = 2
         self.total_eval_ever_n_frames = 8
@@ -85,8 +85,12 @@ class EmoRec:
             #     model = pickle.load(file)
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
-        model.load_state_dict(torch.load(path_to_pr_model)) 
-        model.to(self.device)
+        if torch.cuda.is_available():
+            model.load_state_dict(torch.load(path_to_pr_model)) 
+            model.to(self.device)
+        else:
+            model.to(self.device)
+            model.load_state_dict(torch.load(path_to_pr_model, map_location=torch.device('cpu'))) 
         
         return model
 

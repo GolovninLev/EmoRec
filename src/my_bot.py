@@ -34,8 +34,7 @@ class MyBot:
         # self.upload_file_to_google_drive(r'src\vgg_face_dag.py', 'vgg_face_dag.py')
         
         
-        # os.getenv('TOKEN')
-        self.bot = telebot.TeleBot('6829160910:AAEmmlh0aB567vnpfSsFeTA7CV1Z_vGl3XA', skip_pending=True)
+        self.bot = telebot.TeleBot(os.getenv('TOKEN'), skip_pending=True)
         
         self.emo_rec = EmoRec()
         
@@ -100,7 +99,7 @@ class MyBot:
             
         except Exception as e:
             print({str(e)}) # A request to the Telegram API was unsuccessful. Error code: 413. Description: Request Entity Too Large 
-            self.send_to_google_drive(path_to_res_video, message, message_to_user_text = f"\nВидео оказалось слишком большимм для текущего уровня Telegram API, мы можем отправить его на ваш гугл диск")
+            self.send_to_google_drive(path_to_res_video, message, message_to_user_text = f"\nВидео оказалось слишком большимм для текущего уровня Telegram API, но мы попытаемся отправить его на ваш гугл диск")
                 
         finally:
             os.remove(str(path_to_res_video))
@@ -202,8 +201,3 @@ class MyBot:
         if message.text == self.t_settings:
             pass
 
-
-
-
-my_bot = MyBot()
-my_bot.start_polling()
