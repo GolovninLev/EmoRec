@@ -1,4 +1,7 @@
 import os
+import time
+import json
+
 import io
 from io import BytesIO
 from io import StringIO
@@ -18,6 +21,12 @@ from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 from oauth2client.service_account import ServiceAccountCredentials
 
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from googleapiclient.http import MediaFileUpload
+
 from emo_rec import EmoRec
 
 
@@ -27,14 +36,12 @@ class MyBot:
     
     def __init__(self):
         
-        self.SECRETS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'client_secrets.json')
-        gauth = GoogleAuth()
-        gauth.client_config_file = self.SECRETS_FILE
 
-        # self.upload_file_to_google_drive(r'src\vgg_face_dag.py', 'vgg_face_dag.py')
+        self.upload_file_to_google_drive(r'src\vgg_face_dag.py', 'vgg_face_dag.py')
+        time.sleep(60)
         
         
-        self.bot = telebot.TeleBot(os.getenv('TOKEN'), skip_pending=True)
+        self.bot = telebot.TeleBot('6829160910:AAEmmlh0aB567vnpfSsFeTA7CV1Z_vGl3XA', skip_pending=True)
         
         self.emo_rec = EmoRec()
         
@@ -161,35 +168,48 @@ class MyBot:
 
 
 
-    def upload_file_to_google_drive(self, file_path, file_name):
+    def upload_file_to_google_drive(self, file_path, file_name, update_login_google=False):
         
-        drive = GoogleDrive(GoogleAuth().LocalWebserverAuth()) # аутентификация через браузер
+        # Подключение к Google Drive API
+        API_application_area = ['https://www.googleapis.com/auth/drive.file']
+        credentials = None
 
-        try:
-            # Создание папки
-            folder_metadata = {'title': 'emo_rec', 'mimeType': 'application/vnd.google-apps.folder'}
-            folder = drive.CreateFile(folder_metadata)
-            folder.Upload()
+        authorized_user_file = '.secrets/token.json'
 
-            # Загрузка файла в созданную папку
-            file_metadata = {'title': file_name, 'parents': [{'id': folder['id']}]}
-            file = drive.CreateFile(file_metadata)
-            file.SetContentFile(file_path)
-            file.Upload()
-
-            # Создание ссылки для скачивания
-            file.InsertPermission({
-                'type': 'anyone',
-                'value': 'anyone',
-                'role': 'reader'
-            })
-            download_link = file['alternateLink']
+        # Если уже зарегестрировались, то берём из файла token.json
+        if os.path.exists(authorized_user_file) \
+                    and not update_login_google: # Для смены выбранного ранее аккаунт гугла
             
-            return download_link
+            with open(authorized_user_file, 'r') as token:
+                credentials = Credentials.from_authorized_user_info(info=json.load(token))
+
+
+        # Если credentials не валидные или их ещё нет
+        if not credentials or not credentials.valid \
+                    or update_login_google: # Для смены выбранного ранее аккаунт гугла
+            
+            # Если истёк, обновить
+            if credentials and credentials.expired and credentials.refresh_token:
+                credentials.refresh(Request())
+            # Иначе создать из client_secrets.json
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file('.secrets/client_secrets.json', API_application_area)
+                credentials = flow.run_local_server(port=0)
+            
+            # Запись в token.json 
+            with open(authorized_user_file, 'w') as token:
+                token.write(credentials.to_json())
+
+
+        # Подготовка файла
+        file_metadata = {'name': file_name}
+        media = MediaFileUpload(file_path, resumable=True)
         
-        except Exception as e:
-            print("Произошла ошибка во время отправки файла на гугл-диск:", e)
-            return None
+        # Загрузка файла на Google Диск
+        service = build('drive', 'v3', credentials=credentials)
+        file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        
+        print('Файл успешно загружен. ID файла: %s' % file.get('id'))
 
 
 

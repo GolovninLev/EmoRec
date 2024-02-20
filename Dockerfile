@@ -35,4 +35,4 @@ CMD ["python3", "/src/run.py"]
 
 
 # docker build -t emo_rec:0 .
-# docker run --rm -it --env-file .env emo_rec:0
+# docker run --rm -it --env-file .secrets/.env emo_rec:0
