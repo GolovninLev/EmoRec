@@ -26,13 +26,13 @@ def get_most_common_elem(arr):
 
 class EmoRec:
     def __init__(self):
-        root_dir = Path(__file__).resolve().parent.parent
+        self.root_dir = Path(__file__).resolve().parent.parent
         # ##################################### Свойства
         model_name_photo = 'resnet50' # resnet50 vgg19
         model_name_video = 'resnet50' # resnet50 vgg19
         
-        path_to_pr_model_photo = str(root_dir / 'models' / 'k01.23_13-28-01.pth') # k01.23_08-47-18.pth
-        path_to_pr_model_video = str(root_dir / 'models' / 'k01.23_13-28-01.pth') # k01.23_08-47-18.pth
+        path_to_pr_model_photo = str(self.root_dir / 'models' / 'k01.23_13-28-01.pth') # k01.23_08-47-18.pth
+        path_to_pr_model_video = str(self.root_dir / 'models' / 'k01.23_13-28-01.pth') # k01.23_08-47-18.pth
         
         self.hist_len = 2
         self.total_eval_ever_n_frames = 8
@@ -50,7 +50,7 @@ class EmoRec:
         # self.emotion_labels = {0: "anger", 1: "contempt", 2: "disgust", 3: "fear", 4: "happy", 5: "neutral", 6: "sad", 7: "surprise"}
         self.emotion_labels = {0: "disgust", 1: "contempt", 2: "anger", 3: "fear", 4: "happy", 5: "neutral", 6: "sad", 7: "surprise"}
         
-        self.output_file_path = Path(str(root_dir / 'output'))
+        self.output_file_path = Path(str(self.root_dir / 'output'))
         self.output_file_name = Path(r'output.mp4')
         # ##################################### Свойства 
 
@@ -59,9 +59,32 @@ class EmoRec:
         self.model_photo = self.init_model(model_name_photo, path_to_pr_model_photo)
         self.model_video = self.init_model(model_name_video, path_to_pr_model_video)
 
-        path_to_face_finder_model = str(root_dir / 'models' / 'haarcascade_frontalface_default.xml')
+        path_to_face_finder_model = str(self.root_dir / 'models' / 'haarcascade_frontalface_default.xml')
         self.face_finder = cv2.CascadeClassifier(path_to_face_finder_model) 
         print('EmoRec init successful')
+        
+        
+        self.smiles = dict()
+        self.alphas = dict()
+        self.smile_w = 120
+        self.smile_h = 120
+        alpha = 1.0
+        for smile in self.emotion_labels.values():
+            
+            smile_path = str(self.root_dir / 'emo_imgs' / f'{smile}.png')
+            smiley = cv2.imread(smile_path, cv2.IMREAD_UNCHANGED)
+            
+            
+            # smiley_rs = cv2.resize(smiley[:, :, :3], (self.smile_w, self.smile_h))
+            
+            # self.alphas[smile] = smiley_rs[:, :, :3] / 255.0
+            
+            # smiley_rs[:, :, 3] = alpha * smiley_rs[:, :, 3]
+
+            self.smiles.update({smile: cv2.resize(smiley, (self.smile_w, self.smile_h))})
+            # self.smiles.update({smile: smiley})
+            
+            # self.alphas.update({smile: self.alphas[smile]})
 
 
 # ################################################################################################################
@@ -145,6 +168,33 @@ class EmoRec:
                 prediction = self.predict(clipped_face_frame, 'photo')
                 result_emotion_label = self.emotion_labels[int(np.argmax(prediction))]
                 
+                
+                
+                # image[y : y + self.smile_w, 
+                #       x : x + self.smile_h] = self.smiles[result_emotion_label][:, :, :3] 
+                        # * self.alphas[result_emotion_label] 
+                
+                
+                for c in range(3):
+                    # Применяем альфа-канал смайлика
+                    image[y:y+self.smile_h, 
+                          x:x+self.smile_w, c] = \
+                                self.smiles[result_emotion_label][:, :, c] * (
+                                self.smiles[result_emotion_label][:, :, 3] / 255.0) + \
+                                    image[y:y+self.smile_h, x:x+self.smile_w, c] * \
+                                    (1.0 - self.smiles[result_emotion_label][:, :, 3] / 255.0)
+                
+                # for c in range(3):
+                #     image[y:y + self.smiles[result_emotion_label].shape[0], 
+                #           x:x + self.smiles[result_emotion_label].shape[1], c] = (
+                #                     self.alphas[result_emotion_label] 
+                #                             * self.smiles[result_emotion_label][:, :, c] 
+                #                     + (1 - self.alphas[result_emotion_label]) 
+                #                             * image[y:y + self.smiles[result_emotion_label].shape[0], 
+                #                                     x:x + self.smiles[result_emotion_label].shape[1], c]
+                #                 )
+                
+                
                 # Прописывание значка эмоции
                 cv2.putText(image, result_emotion_label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2) 
         
@@ -152,7 +202,6 @@ class EmoRec:
         _, img_encoded = cv2.imencode('.jpg', image)
         image_bytes = img_encoded.tobytes()
         return image_bytes
-
 
 
 
