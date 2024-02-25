@@ -23,6 +23,8 @@ RUN apt-get update \
 COPY ./models/haarcascade_frontalface_default.xml /models/haarcascade_frontalface_default.xml
 COPY ./models/k01.23_13-28-01.pth /models/k01.23_13-28-01.pth
 
+COPY ./emo_imgs /emo_imgs
+
 # Копирование кода в контейнер
 COPY ./src/emo_rec.py /src/emo_rec.py
 COPY ./src/my_bot.py /src/my_bot.py
@@ -33,6 +35,3 @@ RUN mkdir /output
 RUN mkdir /.secrets
 
 CMD ["python3", "/src/run.py"]
-
-
-

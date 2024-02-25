@@ -64,27 +64,27 @@ class EmoRec:
         print('EmoRec init successful')
         
         
+        self.face_sensitivity_photo = 14
+        self.face_sensitivity_video = 12
+        self.smile_size = 120
+        self.alpha = 0.5
+        
+        self.init_smiles()
+
+
+    def init_smiles(self):
         self.smiles = dict()
         self.alphas = dict()
-        self.smile_w = 120
-        self.smile_h = 120
-        alpha = 1.0
+        self.smile_w = self.smile_size
+        self.smile_h = self.smile_size
+        
         for smile in self.emotion_labels.values():
             
             smile_path = str(self.root_dir / 'emo_imgs' / f'{smile}.png')
             smiley = cv2.imread(smile_path, cv2.IMREAD_UNCHANGED)
             
-            
-            # smiley_rs = cv2.resize(smiley[:, :, :3], (self.smile_w, self.smile_h))
-            
-            # self.alphas[smile] = smiley_rs[:, :, :3] / 255.0
-            
-            # smiley_rs[:, :, 3] = alpha * smiley_rs[:, :, 3]
-
             self.smiles.update({smile: cv2.resize(smiley, (self.smile_w, self.smile_h))})
-            # self.smiles.update({smile: smiley})
-            
-            # self.alphas.update({smile: self.alphas[smile]})
+
 
 
 # ################################################################################################################
@@ -138,7 +138,13 @@ class EmoRec:
 
 # ################################################################################################################
 
-    def make_image(self, file_content):
+    def make_image(self, file_content, face_sensitivity, smile_size, alpha):
+        
+        if self.smile_size != smile_size:
+            self.smile_size = smile_size
+            self.init_smiles()
+        self.face_sensitivity_photo = face_sensitivity
+        self.alpha = alpha
         
         # сохраняем файл в оперативной памяти
         numpy_arr = np.asarray(np.frombuffer(file_content, np.uint8))
@@ -150,14 +156,14 @@ class EmoRec:
             return "Не удалось загрузить изображение."
         
         # Поиск лиц на фото
-        faces_locations = self.face_finder.detectMultiScale(image, minNeighbors=14, minSize=(48, 48), scaleFactor=1.1) 
+        faces_locations = self.face_finder.detectMultiScale(image, minNeighbors=self.face_sensitivity_photo, minSize=(48, 48), scaleFactor=1.1) 
         
 
         # Рисование прямоугольников вокруг обнаруженных лиц
         for (x, y, w, h) in faces_locations:
             
             # Дорисовывание прямоугольника вокруг лица
-            cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 1)
+            # cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 1)
             
             # Вырезание лица для передачи модели
             clipped_face_frame = image[y:y + h, x:x + w]
@@ -170,33 +176,31 @@ class EmoRec:
                 
                 
                 
-                # image[y : y + self.smile_w, 
-                #       x : x + self.smile_h] = self.smiles[result_emotion_label][:, :, :3] 
-                        # * self.alphas[result_emotion_label] 
+                x_smile = x + w // 2 - self.smile_w // 2
+                y_smile = y - self.smile_h // 2
                 
+                if y_smile < 0:
+                    y_smile = 0
+                if x_smile < 0:
+                    x_smile = 0
+                if y_smile + self.smile_h > image.shape[0]:
+                    y_smile = image.shape[0] - self.smile_h
+                if x_smile + self.smile_w > image.shape[1]:
+                    x_smile = image.shape[1] - self.smile_w
+                    
                 
                 for c in range(3):
                     # Применяем альфа-канал смайлика
-                    image[y:y+self.smile_h, 
-                          x:x+self.smile_w, c] = \
-                                self.smiles[result_emotion_label][:, :, c] * (
-                                self.smiles[result_emotion_label][:, :, 3] / 255.0) + \
-                                    image[y:y+self.smile_h, x:x+self.smile_w, c] * \
-                                    (1.0 - self.smiles[result_emotion_label][:, :, 3] / 255.0)
+                    image[y_smile:y_smile+self.smile_h, 
+                          x_smile:x_smile+self.smile_w, c] = \
+                                self.smiles[result_emotion_label][:, :, c] * \
+                               (self.smiles[result_emotion_label][:, :, 3] / (255.0 / self.alpha)) + \
+                                    image[y_smile:y_smile+self.smile_h, 
+                                          x_smile:x_smile+self.smile_w, c] * \
+                                    (1.0 - self.smiles[result_emotion_label][:, :, 3] / (255.0 / self.alpha))
                 
-                # for c in range(3):
-                #     image[y:y + self.smiles[result_emotion_label].shape[0], 
-                #           x:x + self.smiles[result_emotion_label].shape[1], c] = (
-                #                     self.alphas[result_emotion_label] 
-                #                             * self.smiles[result_emotion_label][:, :, c] 
-                #                     + (1 - self.alphas[result_emotion_label]) 
-                #                             * image[y:y + self.smiles[result_emotion_label].shape[0], 
-                #                                     x:x + self.smiles[result_emotion_label].shape[1], c]
-                #                 )
-                
-                
-                # Прописывание значка эмоции
-                cv2.putText(image, result_emotion_label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2) 
+                # Прописывание текста эмоции
+                # cv2.putText(image, result_emotion_label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2) 
         
         
         _, img_encoded = cv2.imencode('.jpg', image)
@@ -209,7 +213,13 @@ class EmoRec:
 
 # ##########################################################
 
-    def make_video(self, file_content, file_id,  is_compress_result=False, compress_video_fps=20):
+    def make_video(self, file_content, file_id, face_sensitivity, smile_size, alpha, is_compress_result=False, compress_video_fps=20):
+        
+        if self.smile_size != smile_size:
+            self.smile_size = smile_size
+            self.init_smiles()
+        self.face_sensitivity_video = face_sensitivity
+        self.alpha = alpha
         
         try:
             
@@ -270,7 +280,7 @@ class EmoRec:
                     break
                 
                 # Поиск лиц на кадре
-                faces_locations = self.face_finder.detectMultiScale(frame, minNeighbors=12, minSize=(48, 48), scaleFactor=1.1) 
+                faces_locations = self.face_finder.detectMultiScale(frame, minNeighbors=self.face_sensitivity_video, minSize=(48, 48), scaleFactor=1.1) 
                 # faces_loc_hist.append(faces_locations) # и запись их расположений в недавную историю
                 
                 

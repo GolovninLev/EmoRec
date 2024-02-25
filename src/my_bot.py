@@ -2,6 +2,7 @@ import os
 import time
 import json
 import threading
+from pathlib import Path
 
 import io
 from io import BytesIO
@@ -12,6 +13,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 import seaborn as sns
+from PIL import Image
 
 import telebot
 from telebot.types import ReplyKeyboardMarkup
@@ -53,9 +55,6 @@ class MyBot:
         # self.buffer_to_send_photo = []
         # self.img_num_from_user = 1
         
-        self.t_settings = "Настройки"
-        self.t_help = "Помощь"
-        self.t_back = "Назад"
         
         self.t_auth_response_part = "https://t.me/EemoRecBot"
         self.t_auth_response_full = ""
@@ -63,22 +62,75 @@ class MyBot:
         
         self.send_url_resp_event = threading.Event()
         
-        self.t_location_receive_result = "Выбрать место получения результата"
-        self.t_reset_google_drive = "Войти в аккаунт google drive"
+        
+        self.previous_command = ''
+        self.face_sensitivity_photo = 14
+        self.face_sensitivity_video = 12
+        self.smile_size = 120
+        self.alpha = 0.5
+        self.new_icon_sent = False
+        self.root_dir = Path(__file__).resolve().parent.parent
         
         self.t_telegram = "Telegram"
         self.t_google_drive = "Google drive"
         
+        
+        
+        self.t_settings = "\U00002699 Настройки"
+        self.t_help = "\U00002753 Помощь"
+        
+        self.t_set_icons = "\U00002699 \U0001F60A Иконки смайлика"
+        self.t_set_smile_size = "\U00002699 \U0001F60A Размер смайлика"
+        self.t_set_alpha = "\U00002699 \U0001F60A Прозрачность смайлика"
+        self.t_set_face_sensitivity_photo = "\U00002699 \U0001F50D Сила поиска лиц на фото"
+        self.t_set_face_sensitivity_video = "\U00002699 \U0001F50D Силу поиска лиц на видео"
+        
+        self.t_location_receive_result = "\U000026F3 Способ получения результата"
+        self.t_reset_google_drive = "\U0001F512 Войти/сменить аккаунт google drive"
+        
+        self.t_back = "\U000025C0 Назад"
+        
+        
         self.keyboard_base = ReplyKeyboardMarkup(resize_keyboard = True)
-        self.keyboard_base.add(KeyboardButton(text=self.t_settings), KeyboardButton(text=self.t_help))
+        self.keyboard_base.add(KeyboardButton(text=self.t_settings), 
+                               KeyboardButton(text=self.t_help))
+        
         
         self.keyboard_settings = ReplyKeyboardMarkup(resize_keyboard = True)
+        
+        self.keyboard_settings.add(KeyboardButton(text=self.t_set_icons))
+        self.keyboard_settings.add(KeyboardButton(text=self.t_set_smile_size))
+        self.keyboard_settings.add(KeyboardButton(text=self.t_set_alpha))
+        self.keyboard_settings.add(KeyboardButton(text=self.t_set_face_sensitivity_photo))
+        self.keyboard_settings.add(KeyboardButton(text=self.t_set_face_sensitivity_video))
+        
         self.keyboard_settings.add(KeyboardButton(text=self.t_location_receive_result))
         self.keyboard_settings.add(KeyboardButton(text=self.t_reset_google_drive))
+        
         self.keyboard_settings.add(KeyboardButton(text=self.t_back))
         
+        
         self.keyboard_shipping_method = ReplyKeyboardMarkup(resize_keyboard = True)
-        self.keyboard_shipping_method.add(KeyboardButton(text=self.t_telegram), KeyboardButton(text=self.t_google_drive))
+        self.keyboard_shipping_method.add(KeyboardButton(text=self.t_telegram), 
+                                          KeyboardButton(text=self.t_google_drive))
+        
+        
+        self.emotion_labels = {0: "Отвращение", 1: "Презрение", 2: "Гнев", 3: "Страх", 4: "Счастье", 5: "Нейтральность", 6: "Грусть", 7: "Удивление"}
+        self.emotion_labels_en = {0: "disgust", 1: "contempt", 2: "anger", 3: "fear", 4: "happy", 5: "neutral", 6: "sad", 7: "surprise"}
+
+
+        self.keyboard_emos = ReplyKeyboardMarkup(resize_keyboard = True)
+        
+        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[0]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[1]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[2]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[3]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[4]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[5]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[6]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[7]))
+        self.keyboard_emos.add(KeyboardButton(text=self.t_back))
+
         
 
 
@@ -91,6 +143,7 @@ class MyBot:
                         reply_markup=self.keyboard_settings)
             return
 
+
         try:
             if message.content_type == 'document':
                 file = self.bot.get_file(message.document.file_id)
@@ -100,7 +153,25 @@ class MyBot:
                 file = self.bot.get_file(message.photo[-1].file_id) 
     
             file_content = self.bot.download_file(file.file_path)
-            image_res = self.emo_rec.make_image(file_content)
+            
+            if self.new_icon_sent == True:
+                image = Image.open(io.BytesIO(file_content))
+                path_to_emo = str(self.root_dir / 'emo_imgs' / f'{self.emotion_labels_en[self.new_icon_num]}.png')
+                
+                # Добавление альфа-канала, если его нет
+                if image.mode != 'RGBA':
+                    image = image.convert('RGBA')
+                    
+                image.save(path_to_emo, format='PNG')
+                self.bot.send_message(message.chat.id, 
+                        f'Новая иконка для эмоции "{self.emotion_labels[self.new_icon_num]}" установлена', 
+                        reply_markup=self.keyboard_settings)
+                
+                self.new_icon_sent = False
+                self.smile_size += 1
+                return
+            
+            image_res = self.emo_rec.make_image(file_content, self.face_sensitivity_photo, self.smile_size, self.alpha)
             
             # self.bot.send_photo(message.chat.id, result)
             
@@ -146,14 +217,14 @@ class MyBot:
                 self.bot.send_message(message.chat.id, 
                     f"Начинаем обрабатывать ваше видео...", 
                     reply_markup=self.keyboard_base)
-                video_res, path_to_res_video = self.emo_rec.make_video(file_content, message.video.file_id, is_compress_result=self.is_compress_result, compress_video_fps = self.compress_video_fps)
+                video_res, path_to_res_video = self.emo_rec.make_video(file_content, message.video.file_id, self.face_sensitivity_video, self.smile_size, self.alpha, is_compress_result=self.is_compress_result, compress_video_fps = self.compress_video_fps)
             if message.content_type == 'animation': # .animation. ~= .document. != .gif.
                 file = self.bot.get_file(message.animation.file_id) # .animation. ~= .document. != .gif.
                 file_content = self.bot.download_file(file.file_path)
                 self.bot.send_message(message.chat.id, 
                     f"Начинаем обрабатывать ваше видео...", 
                     reply_markup=self.keyboard_base)
-                video_res, path_to_res_video = self.emo_rec.make_video(file_content, message.animation.file_id, is_compress_result=self.is_compress_result, compress_video_fps = self.compress_video_fps) # .animation. ~= .document. != .gif.
+                video_res, path_to_res_video = self.emo_rec.make_video(file_content, message.animation.file_id, self.face_sensitivity_video, self.smile_size, self.alpha, is_compress_result=self.is_compress_result, compress_video_fps = self.compress_video_fps) # .animation. ~= .document. != .gif.
                 
         except Exception as e:
             self.bot.reply_to(message, str(e))
@@ -205,6 +276,7 @@ class MyBot:
         if not self.credentials or not self.credentials.valid \
                     or self.update_login_google: # Для смены выбранного ранее аккаунт гугла
             
+            
             # Если истёк, обновить
             if self.credentials and self.credentials.expired and self.credentials.refresh_token:
                 self.credentials.refresh(Request())
@@ -217,7 +289,6 @@ class MyBot:
                                                      scopes=API_application_area, 
                                                      redirect_uri=self.t_auth_response_part)
                 authorization_url, state = flow.authorization_url(prompt='consent')
-                
                 
                 # Отправка сообщения с кнопкой авторизыции
                 auth_keyboard_msg = InlineKeyboardMarkup()
@@ -236,9 +307,12 @@ class MyBot:
                 flow.fetch_token(authorization_response=self.t_auth_response_full)
                 self.credentials = flow.credentials
             
+            
             # Запись в token.json 
             with open(self.authorized_user_file, 'w') as token:
                 token.write(self.credentials.to_json())
+        
+        
         
         # Проверка корректности
         if self.credentials and self.credentials.valid:
@@ -287,6 +361,10 @@ class MyBot:
 
     def start_polling(self):
         """Функция для запуска бота"""
+        @self.bot.message_handler(commands=['start'])
+        def handle_start(message):
+            self.handle_start(message)
+            
         @self.bot.message_handler(content_types=['photo', 'document'])
         def handle_photo_doc(message): 
             self.handle_photo_doc(message)
@@ -299,13 +377,24 @@ class MyBot:
         def handle_text(message): 
             self.handle_text(message)
             
-        @self.bot.message_handler(commands=['start'])
-        def handle_start(message):
-            self.handle_start(message)
         
         # Запуск бота
         self.bot.polling(none_stop=True, interval=0)
 
+    def is_float(self, s):
+        try:
+            float(s.replace(',', '.'))
+            return True
+        except ValueError:
+            return False
+        
+
+    def get_key_by_value(self, dictionary, value):
+        for key, val in dictionary.items():
+            if val == value:
+                return key
+        # If the value is not found, return None or handle it according to your needs
+        return None
 
 
     def handle_text(self, message):
@@ -351,4 +440,65 @@ class MyBot:
         if self.t_auth_response_part in message.text:
             self.t_auth_response_full = message.text
             self.send_url_resp_event.set()
+
+
+        if message.text == self.t_set_smile_size:
+            self.previous_command = self.t_set_smile_size
+            self.bot.send_message(message.chat.id, 
+                f"Напишите целое число в пиксалях, которое будет использоваться для установки ширины и высоты смайлика", 
+                reply_markup=self.keyboard_settings)
+
+        if message.text == self.t_set_face_sensitivity_photo:
+            self.previous_command = self.t_set_face_sensitivity_photo
+            self.bot.send_message(message.chat.id, 
+                f"Напишите целое число от 1 до 30, устанавливающее чувствительность поиска лиц для фото (где 1 - много ложных срабатываний; 30 - недостаток детектирования; по умолчанию: для фото - 14", 
+                reply_markup=self.keyboard_settings)
             
+        if message.text == self.t_set_face_sensitivity_video:
+            self.previous_command = self.t_set_face_sensitivity_video
+            self.bot.send_message(message.chat.id, 
+                f"Напишите целое число от 1 до 30, устанавливающее чувствительность поиска лиц для видео (где 1 - много ложных срабатываний; 30 - недостаток детектирования; по умолчанию: для видео - 12", 
+                reply_markup=self.keyboard_settings)
+
+        if message.text == self.t_set_alpha:
+            self.previous_command = self.t_set_alpha
+            self.bot.send_message(message.chat.id, 
+                f"Напишите не целое число от 0.0 до 1.0, устанавливающее прозрачность смайликов (где 1.0 - непрозрачное, 0.0 - прозрачное)", 
+                reply_markup=self.keyboard_settings)
+
+        if message.text.isdigit() or self.is_float(message.text.replace(',', '.')):
+            if self.previous_command == self.t_set_smile_size:
+                self.smile_size = int(message.text)
+                self.bot.send_message(message.chat.id, 
+                    f"Установлен размер смайлика в {self.smile_size} пикселей", 
+                    reply_markup=self.keyboard_settings)
+                
+            if self.previous_command == self.t_set_face_sensitivity_photo:
+                self.face_sensitivity_photo = int(message.text)
+                self.bot.send_message(message.chat.id, 
+                    f"Установлена чувствительность поиска лиц для фото = {self.face_sensitivity_photo}", 
+                    reply_markup=self.keyboard_settings)
+                
+            if self.previous_command == self.t_set_face_sensitivity_video:
+                self.face_sensitivity_video = int(message.text)
+                self.bot.send_message(message.chat.id, 
+                    f"Установлена чувствительность поиска лиц для видео = {self.face_sensitivity_video}", 
+                    reply_markup=self.keyboard_settings)
+                
+            if self.previous_command == self.t_set_alpha:
+                self.alpha = float(message.text.replace(',', '.'))
+                self.bot.send_message(message.chat.id, 
+                    f"Установлен прозрачность смайликов = {self.alpha}", 
+                    reply_markup=self.keyboard_settings)
+            
+        if message.text == self.t_set_icons:
+            self.bot.send_message(message.chat.id, 
+                f"Выбеите эмоцию, иконку которой хотите замменить", 
+                reply_markup=self.keyboard_emos)
+        
+        if message.text in self.emotion_labels.values():
+            self.new_icon_sent = True
+            self.new_icon_num = self.get_key_by_value(self.emotion_labels, message.text)
+            self.bot.send_message(message.chat.id, 
+                f"Пришлите КАК ФАЙЛ (на сжатую) новую иконку эмоции", 
+                reply_markup=self.keyboard_emos)
