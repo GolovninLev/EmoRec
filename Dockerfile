@@ -30,9 +30,9 @@ COPY ./src/vgg_face_dag.py /src/vgg_face_dag.py
 COPY ./src/run.py /src/run.py
 
 RUN mkdir /output
+RUN mkdir /.secrets
 
 CMD ["python3", "/src/run.py"]
 
 
-# docker build -t emo_rec:0 .
-# docker run --rm -it --env-file .secrets/.env emo_rec:0
+
