@@ -43,7 +43,7 @@ class MyBot:
         
         self.emo_rec = EmoRec()
         
-        self.shipping_method = 'google_drive' # telegram google_drive
+        self.shipping_method = 'telegram' # telegram google_drive
         
         self.is_compress_result = True
         self.compress_video_fps = 20
@@ -85,7 +85,7 @@ class MyBot:
 
 
     def handle_photo_doc(self, message): 
-        if self.update_login_google == True:
+        if self.update_login_google == True and self.shipping_method == 'google_drive':
             self.bot.send_message(message.chat.id, 
                         f"Сначала авторизируйтесь в аккаунте google drive...", 
                         reply_markup=self.keyboard_settings)
@@ -133,7 +133,7 @@ class MyBot:
 
 
     def handle_video_animation(self, message):
-        if self.update_login_google == True:
+        if self.update_login_google == True and self.shipping_method == 'google_drive':
             self.bot.send_message(message.chat.id, 
                         f"Сначала авторизируйтесь в аккаунте google drive...", 
                         reply_markup=self.keyboard_settings)
