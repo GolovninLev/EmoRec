@@ -50,7 +50,7 @@ class EmoRec:
         # self.emotion_labels = {0: "anger", 1: "contempt", 2: "disgust", 3: "fear", 4: "happy", 5: "neutral", 6: "sad", 7: "surprise"}
         self.emotion_labels = {0: "disgust", 1: "contempt", 2: "anger", 3: "fear", 4: "happy", 5: "neutral", 6: "sad", 7: "surprise"}
         
-        self.output_file_path = Path(r'./output/')
+        self.output_file_path = Path(str(root_dir / 'output'))
         self.output_file_name = Path(r'output.mp4')
         # ##################################### Свойства 
 

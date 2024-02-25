@@ -26,6 +26,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import MediaIoBaseUpload
 
 from emo_rec import EmoRec
 
@@ -33,19 +34,14 @@ from emo_rec import EmoRec
 
 class MyBot:
     
-    
     def __init__(self):
-        
-
-        self.upload_file_to_google_drive(r'src\vgg_face_dag.py', 'vgg_face_dag.py')
-        time.sleep(60)
-        
         
         self.bot = telebot.TeleBot('6829160910:AAEmmlh0aB567vnpfSsFeTA7CV1Z_vGl3XA', skip_pending=True)
         
         self.emo_rec = EmoRec()
         
-        
+        self.shipping_method = 'telegram'
+        self.update_login_google = False
         self.is_compress_result = True
         self.compress_video_fps = 20
         
@@ -54,10 +50,192 @@ class MyBot:
         
         self.t_settings = "Настройки"
         self.t_help = "Помощь"
-        self.keyboard = ReplyKeyboardMarkup(resize_keyboard = True)
-        self.keyboard.add(KeyboardButton(text=self.t_settings), KeyboardButton(text=self.t_help))
+        self.t_back = "Назад"
+        
+        self.t_location_receive_result = "Выбрать место получения результата"
+        self.t_reset_google_drive = "Сбросить авторизацию в google drive"
+        
+        self.t_telegram = "Telegram"
+        self.t_google_drive = "Google drive"
+        
+        self.keyboard_base = ReplyKeyboardMarkup(resize_keyboard = True)
+        self.keyboard_base.add(KeyboardButton(text=self.t_settings), KeyboardButton(text=self.t_help))
+        
+        self.keyboard_settings = ReplyKeyboardMarkup(resize_keyboard = True)
+        self.keyboard_settings.add(KeyboardButton(text=self.t_location_receive_result))
+        self.keyboard_settings.add(KeyboardButton(text=self.t_reset_google_drive))
+        self.keyboard_settings.add(KeyboardButton(text=self.t_back))
+        
+        self.keyboard_shipping_method = ReplyKeyboardMarkup(resize_keyboard = True)
+        self.keyboard_shipping_method.add(KeyboardButton(text=self.t_telegram), KeyboardButton(text=self.t_google_drive))
         
 
+
+
+
+    def handle_photo_doc(self, message): 
+        try:
+            if message.content_type == 'document':
+                file = self.bot.get_file(message.document.file_id)
+
+            if message.content_type == 'photo':
+                # -1 = присланное пользователем фото в самом хорошем качестве (меньшие индексы = хуже)
+                file = self.bot.get_file(message.photo[-1].file_id) 
+    
+            file_content = self.bot.download_file(file.file_path)
+            result = self.emo_rec.make_image(file_content)
+            
+            # self.bot.send_photo(message.chat.id, result)
+            
+            # self.buffer_to_send_photo.append(InputMediaPhoto(result))
+            # if len(self.buffer_to_send_photo) == self.img_num_from_user:
+            #     self.bot.send_media_group(chat_id=message.chat.id, media=self.buffer_to_send_photo)
+            #     self.buffer_to_send_photo = []
+            # print(self.buffer_to_send_photo)
+
+        except Exception as e:
+            self.bot.reply_to(message, str(e))
+            traceback.print_exc()
+        
+        
+        
+         # Отправка фото
+        try:
+            if self.shipping_method == 'telegram':
+                    self.bot.send_photo(message.chat.id, result)
+            if self.shipping_method == 'google_drive':
+                    self.bot.send_message(message.chat.id, 
+                        f"Отправляем фото на гугл диск...", 
+                        reply_markup=self.keyboard_base)
+                    self.upload_file_to_google_drive(result, message, mode='photo')
+
+                
+        except Exception as e:
+            self.bot.reply_to(message, str(e))
+            traceback.print_exc()
+
+
+
+    def handle_video_animation(self, message):
+        # Обработка видео
+        try:
+            if message.content_type == 'video':
+                file = self.bot.get_file(message.video.file_id)
+                file_content = self.bot.download_file(file.file_path)
+                self.bot.send_message(message.chat.id, 
+                    f"Начинаем обрабатывать ваше видео...", 
+                    reply_markup=self.keyboard_base)
+                video_res, path_to_res_video = self.emo_rec.make_video(file_content, message.video.file_id, is_compress_result=self.is_compress_result, compress_video_fps = self.compress_video_fps)
+            if message.content_type == 'animation': # .animation. ~= .document. != .gif.
+                file = self.bot.get_file(message.animation.file_id) # .animation. ~= .document. != .gif.
+                file_content = self.bot.download_file(file.file_path)
+                self.bot.send_message(message.chat.id, 
+                    f"Начинаем обрабатывать ваше видео...", 
+                    reply_markup=self.keyboard_base)
+                video_res, path_to_res_video = self.emo_rec.make_video(file_content, message.animation.file_id, is_compress_result=self.is_compress_result, compress_video_fps = self.compress_video_fps) # .animation. ~= .document. != .gif.
+                
+        except Exception as e:
+            self.bot.reply_to(message, str(e))
+            traceback.print_exc()
+
+        # Отправка видео
+        if self.shipping_method == 'telegram':
+            try:
+                self.bot.send_video(message.chat.id, video_res)
+                
+            except Exception as e:
+                print({str(e)}) # A request to the Telegram API was unsuccessful. Error code: 413. Description: Request Entity Too Large 
+                self.bot.send_message(message.chat.id, 
+                    f"\nВидео оказалось слишком большимм для текущего уровня Telegram API, но мы попытаемся отправить его на ваш гугл диск", 
+                    reply_markup=self.keyboard_base)
+                self.upload_file_to_google_drive(path_to_res_video, message, mode='video')
+            finally:
+                os.remove(str(path_to_res_video))
+        
+        if self.shipping_method == 'google_drive':
+            try: 
+                self.bot.send_message(message.chat.id, 
+                    f"Отправляем видео на гугл диск...", 
+                    reply_markup=self.keyboard_base)
+                self.upload_file_to_google_drive(path_to_res_video, message, mode='video')
+            except Exception as e:
+                self.bot.reply_to(message, str(e))
+                traceback.print_exc()
+            finally:
+                os.remove(str(path_to_res_video))
+
+
+
+
+    def upload_file_to_google_drive(self, file_path, message, mode):
+        
+        # Подключение к Google Drive API
+        API_application_area = ['https://www.googleapis.com/auth/drive.file']
+        credentials = None
+
+        authorized_user_file = '.secrets/token.json'
+
+        # Если уже зарегестрировались, то берём из файла token.json
+        if os.path.exists(authorized_user_file) \
+                    and not self.update_login_google: # Для смены выбранного ранее аккаунт гугла
+            
+            with open(authorized_user_file, 'r') as token:
+                credentials = Credentials.from_authorized_user_info(info=json.load(token))
+
+
+        # Если credentials не валидные или их ещё нет
+        if not credentials or not credentials.valid \
+                    or self.update_login_google: # Для смены выбранного ранее аккаунт гугла
+            
+            # Если истёк, обновить
+            if credentials and credentials.expired and credentials.refresh_token:
+                credentials.refresh(Request())
+            # Иначе создать из client_secrets.json
+            else:
+                self.bot.send_message(message.chat.id, 
+                    f"Авторизируйтесь в браузере в том аккаунте, на который надо отправить обработанный файл", 
+                    reply_markup=self.keyboard_base)
+                
+                flow = InstalledAppFlow.from_client_secrets_file('.secrets/client_secrets.json', API_application_area)
+                credentials = flow.run_local_server(port=0)
+            
+            # Запись в token.json 
+            with open(authorized_user_file, 'w') as token:
+                token.write(credentials.to_json())
+            
+            self.update_login_google = False
+
+
+        # Подготовка файла
+        if mode == 'video':
+            media = MediaFileUpload(file_path, resumable=True)
+            file_metadata = {'name': 'emo_rec_output.mp4'}
+        if mode == 'photo':
+            file_metadata = {'name': 'emo_rec_output.jpg'}
+
+            # media = MediaIoBaseUpload(file_path.decode('utf-8'), mimetype="image/jpeg", resumable=True)
+            
+            media = MediaIoBaseUpload(io.BytesIO(file_path), mimetype="image/jpeg", resumable=True)
+
+
+        # Загрузка файла на Google Диск
+        service = build('drive', 'v3', credentials=credentials)
+        file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        
+        print('Файл успешно загружен. ID файла: %s' % file.get('id'))
+
+
+
+    def handle_start(self, message):
+        """Обработчик комнады "start"; функция для создания стартового меню
+        Args:
+            message (Message): Объект сообщения
+        """
+        # Создание меню с кнопками
+        
+        self.bot.send_message(message.chat.id, 
+                        "Отпрвьте фото или видео и получите их обработанную версию назад \n\nЕсли пределы API телеграмма будут превышены, то вам будет предложено сохранить видео на гугл диск", 
+                        reply_markup=self.keyboard_base)
 
 
 
@@ -84,140 +262,43 @@ class MyBot:
 
 
 
-    def handle_video_animation(self, message):
-        try:
-            if message.content_type == 'video':
-                file = self.bot.get_file(message.video.file_id)
-                file_content = self.bot.download_file(file.file_path)
-                video_res, path_to_res_video = self.emo_rec.make_video(file_content, message.video.file_id, is_compress_result=self.is_compress_result, compress_video_fps = self.compress_video_fps)
-            if message.content_type == 'animation': # .animation. ~= .document. != .gif.
-                file = self.bot.get_file(message.animation.file_id) # .animation. ~= .document. != .gif.
-                file_content = self.bot.download_file(file.file_path)
-                video_res, path_to_res_video = self.emo_rec.make_video(file_content, message.animation.file_id, is_compress_result=self.is_compress_result, compress_video_fps = self.compress_video_fps) # .animation. ~= .document. != .gif.
-                
-        except Exception as e:
-            self.bot.reply_to(message, str(e))
-            traceback.print_exc()
-            self.bot.send_video(message.chat.id, video_res)
-
-
-        try:
-            self.bot.send_video(message.chat.id, video_res)
-            
-        except Exception as e:
-            print({str(e)}) # A request to the Telegram API was unsuccessful. Error code: 413. Description: Request Entity Too Large 
-            self.send_to_google_drive(path_to_res_video, message, message_to_user_text = f"\nВидео оказалось слишком большимм для текущего уровня Telegram API, но мы попытаемся отправить его на ваш гугл диск")
-                
-        finally:
-            os.remove(str(path_to_res_video))
-
-
-
-    def send_to_google_drive(self, path_to_res_video, message, message_to_user_text):
-        download_link = self.upload_file_to_google_drive(path_to_res_video, os.path.basename(path_to_res_video))
-        self.bot.send_message(message.chat.id, 
-                message_to_user_text, 
-                reply_markup=self.keyboard)
-        
-        if download_link:
-            self.bot.send_message(message.chat.id, 
-                f"Ссылка для скачивания файла: {download_link}", 
-                reply_markup=self.keyboard)
-        else:
-            self.bot.send_message(message.chat.id, 
-                f"Что-то пошло не так",
-                reply_markup=self.keyboard)
-
-
-    
-    def handle_start(self, message):
-        """Обработчик комнады "start"; функция для создания стартового меню
-        Args:
-            message (Message): Объект сообщения
-        """
-        # Создание меню с кнопками
-        
-        self.bot.send_message(message.chat.id, 
-                        "Отпрвьте фото или видео и получите их обработанную версию назад \n\nЕсли пределы API телеграмма будут превышены, то вам будет предложено сохранить видео на гугл диск", 
-                        reply_markup=self.keyboard)
-
-
-
-    def handle_photo_doc(self, message): 
-        try:
-            if message.content_type == 'document':
-                file = self.bot.get_file(message.document.file_id)
-
-            if message.content_type == 'photo':
-                # -1 = присланное пользователем фото в самом хорошем качестве (меньшие индексы = хуже)
-                file = self.bot.get_file(message.photo[-1].file_id) 
-    
-            file_content = self.bot.download_file(file.file_path)
-            result = self.emo_rec.make_image(file_content)
-            self.bot.send_photo(message.chat.id, result)
-            
-            # self.buffer_to_send_photo.append(InputMediaPhoto(result))
-            # if len(self.buffer_to_send_photo) == self.img_num_from_user:
-            #     self.bot.send_media_group(chat_id=message.chat.id, media=self.buffer_to_send_photo)
-            #     self.buffer_to_send_photo = []
-            # print(self.buffer_to_send_photo)
-
-        except Exception as e:
-            self.bot.reply_to(message, str(e))
-            traceback.print_exc()
-
-
-
-    def upload_file_to_google_drive(self, file_path, file_name, update_login_google=False):
-        
-        # Подключение к Google Drive API
-        API_application_area = ['https://www.googleapis.com/auth/drive.file']
-        credentials = None
-
-        authorized_user_file = '.secrets/token.json'
-
-        # Если уже зарегестрировались, то берём из файла token.json
-        if os.path.exists(authorized_user_file) \
-                    and not update_login_google: # Для смены выбранного ранее аккаунт гугла
-            
-            with open(authorized_user_file, 'r') as token:
-                credentials = Credentials.from_authorized_user_info(info=json.load(token))
-
-
-        # Если credentials не валидные или их ещё нет
-        if not credentials or not credentials.valid \
-                    or update_login_google: # Для смены выбранного ранее аккаунт гугла
-            
-            # Если истёк, обновить
-            if credentials and credentials.expired and credentials.refresh_token:
-                credentials.refresh(Request())
-            # Иначе создать из client_secrets.json
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file('.secrets/client_secrets.json', API_application_area)
-                credentials = flow.run_local_server(port=0)
-            
-            # Запись в token.json 
-            with open(authorized_user_file, 'w') as token:
-                token.write(credentials.to_json())
-
-
-        # Подготовка файла
-        file_metadata = {'name': file_name}
-        media = MediaFileUpload(file_path, resumable=True)
-        
-        # Загрузка файла на Google Диск
-        service = build('drive', 'v3', credentials=credentials)
-        file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-        
-        print('Файл успешно загружен. ID файла: %s' % file.get('id'))
-
-
-
     def handle_text(self, message):
         
         if message.text == self.t_help:
             self.handle_start(message)
             
+            
         if message.text == self.t_settings:
-            pass
+            self.bot.send_message(message.chat.id, 
+                f"Выберите то, что хотите настроить", 
+                reply_markup=self.keyboard_settings)
+        
+        if message.text == self.t_location_receive_result:
+            self.bot.send_message(message.chat.id, 
+                f"Выберите место получения результата", 
+                reply_markup=self.keyboard_shipping_method)
 
+
+        if message.text == self.t_reset_google_drive:
+            self.update_login_google = True
+            self.bot.send_message(message.chat.id, 
+                f"Авторизация в аккаунте google drive сброшена", 
+                reply_markup=self.keyboard_settings)
+        
+        if message.text == self.t_telegram:
+            self.shipping_method = 'telegram'
+            self.bot.send_message(message.chat.id, 
+                f"Вы будете получать результаты обработки в этот чат", 
+                reply_markup=self.keyboard_settings)
+            
+        if message.text == self.t_google_drive:
+            self.shipping_method = 'google_drive'
+            self.bot.send_message(message.chat.id, 
+                f"Вы будете получать результаты обработки на ваш google drive (после авторизации)", 
+                reply_markup=self.keyboard_settings)
+
+
+        if message.text == self.t_back:
+            self.bot.send_message(message.chat.id, 
+                f"Пришлите фото или видео файл", 
+                reply_markup=self.keyboard_base)
