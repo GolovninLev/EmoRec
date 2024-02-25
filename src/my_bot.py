@@ -121,14 +121,23 @@ class MyBot:
 
         self.keyboard_emos = ReplyKeyboardMarkup(resize_keyboard = True)
         
-        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[0]))
-        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[1]))
-        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[2]))
-        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[3]))
-        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[4]))
-        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[5]))
-        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[6]))
-        self.keyboard_emos.add(KeyboardButton(text=self.emotion_labels[7]))
+        self.emo_buttons = [f'\U0001F616 {self.emotion_labels[0]}',
+            f'\U0001F60F {self.emotion_labels[1]}',
+            f'\U0001F621 {self.emotion_labels[2]}',
+            f'\U0001F628 {self.emotion_labels[3]}',
+            f'\U0001F604 {self.emotion_labels[4]}',
+            f'\U0001F610 {self.emotion_labels[5]}',
+            f'\U0001F622 {self.emotion_labels[6]}',
+            f'\U0001F62E {self.emotion_labels[7]}']
+        
+        self.keyboard_emos.add(KeyboardButton(text=self.emo_buttons[0]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emo_buttons[1]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emo_buttons[2]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emo_buttons[3]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emo_buttons[4]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emo_buttons[5]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emo_buttons[6]))
+        self.keyboard_emos.add(KeyboardButton(text=self.emo_buttons[7]))
         self.keyboard_emos.add(KeyboardButton(text=self.t_back))
 
         
@@ -192,10 +201,10 @@ class MyBot:
                     self.bot.send_photo(message.chat.id, image_res)
                     
             if self.shipping_method == 'google_drive':
-                    self.bot.send_message(message.chat.id, 
-                        f"Отправляем фото на google drive...", 
-                        reply_markup=self.keyboard_base)
                     self.upload_file_to_google_drive(image_res, mode='photo')
+                    self.bot.send_message(message.chat.id, 
+                        f"Фото отправлено на google drive...", 
+                        reply_markup=self.keyboard_base)
 
         except Exception as e:
             self.bot.reply_to(message, str(e))
@@ -249,6 +258,9 @@ class MyBot:
                     f"Отправляем видео на google drive...", 
                     reply_markup=self.keyboard_base)
                 self.upload_file_to_google_drive(path_to_res_video, mode='video')
+                self.bot.send_message(message.chat.id, 
+                    f"Видео отправлено на google drive", 
+                    reply_markup=self.keyboard_base)
             except Exception as e:
                 self.bot.reply_to(message, str(e))
                 traceback.print_exc()
@@ -496,9 +508,9 @@ class MyBot:
                 f"Выбеите эмоцию, иконку которой хотите замменить", 
                 reply_markup=self.keyboard_emos)
         
-        if message.text in self.emotion_labels.values():
+        if message.text in self.emo_buttons:
             self.new_icon_sent = True
-            self.new_icon_num = self.get_key_by_value(self.emotion_labels, message.text)
+            self.new_icon_num = self.emo_buttons.index(message.text) 
             self.bot.send_message(message.chat.id, 
                 f"Пришлите КАК ФАЙЛ (на сжатую) новую иконку эмоции", 
                 reply_markup=self.keyboard_emos)
