@@ -28,11 +28,11 @@ class EmoRec:
     def __init__(self):
         self.root_dir = Path(__file__).resolve().parent.parent
         # ##################################### Свойства
-        model_name_photo = 'resnet50' # resnet50 vgg19
-        model_name_video = 'resnet50' # resnet50 vgg19
+        model_name_photo = 'vgg19' # resnet50 vgg19
+        model_name_video = 'vgg19' # resnet50 vgg19
         
-        path_to_pr_model_photo = str(self.root_dir / 'models' / 'k01.23_13-28-01.pth') # k01.23_08-47-18.pth
-        path_to_pr_model_video = str(self.root_dir / 'models' / 'k01.23_13-28-01.pth') # k01.23_08-47-18.pth
+        path_to_pr_model_photo = str(self.root_dir / 'models' / 'k03.28_13-28-55_e19.pth') # k01.23_08-47-18.pth k03.28_13-28-55_e19.pth
+        path_to_pr_model_video = str(self.root_dir / 'models' / 'k03.28_13-28-55_e19.pth') # k01.23_08-47-18.pth k03.28_13-28-55_e19.pth
         
         self.hist_len = 2
         self.total_eval_ever_n_frames = 8
@@ -299,7 +299,7 @@ class EmoRec:
                     
                     
                     # Дорисовывание прямоугольника вокруг лица
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 1)
+                    # cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 1)
                     
                     # Вырезание лица для передачи модели
                     clipped_face_frame = frame[y:y + h, x:x + w]
@@ -329,7 +329,30 @@ class EmoRec:
                         
                         
                         # Прописывание значка эмоции
-                        cv2.putText(frame, result_emotion_label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2) 
+                        # cv2.putText(frame, result_emotion_label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2) 
+                        
+                        x_smile = x + w // 2 - self.smile_w // 2
+                        y_smile = y - self.smile_h // 2
+                        
+                        if y_smile < 0:
+                            y_smile = 0
+                        if x_smile < 0:
+                            x_smile = 0
+                        if y_smile + self.smile_h > frame.shape[0]:
+                            y_smile = frame.shape[0] - self.smile_h
+                        if x_smile + self.smile_w > frame.shape[1]:
+                            x_smile = frame.shape[1] - self.smile_w
+                            
+                        
+                        for c in range(3):
+                            # Применяем альфа-канал смайлика
+                            frame[y_smile:y_smile+self.smile_h, 
+                                x_smile:x_smile+self.smile_w, c] = \
+                                        self.smiles[result_emotion_label][:, :, c] * \
+                                    (self.smiles[result_emotion_label][:, :, 3] / (255.0 / self.alpha)) + \
+                                            frame[y_smile:y_smile+self.smile_h, 
+                                                x_smile:x_smile+self.smile_w, c] * \
+                                            (1.0 - self.smiles[result_emotion_label][:, :, 3] / (255.0 / self.alpha))
                 
                 
                 # Запись обработанного кадра в выходной файл

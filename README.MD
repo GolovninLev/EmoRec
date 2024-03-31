@@ -26,3 +26,8 @@
     ```link
     https://t.me/<название бота, которое вы ему дали при генерации своего токена>
     ```
+
+<!-- 
+docker build -t emo_rec:0 .
+docker run --rm -it -d -e TOKEN=6829160910:AAEmmlh0aB567vnpfSsFeTA7CV1Z_vGl3XA emo_rec:0 
+-->
