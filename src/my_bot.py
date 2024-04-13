@@ -512,5 +512,5 @@ class MyBot:
             self.new_icon_sent = True
             self.new_icon_num = self.emo_buttons.index(message.text) 
             self.bot.send_message(message.chat.id, 
-                f"Пришлите КАК ФАЙЛ (на сжатую) новую иконку эмоции", 
+                f"Пришлите как файл (не сжатую) новую иконку эмоции", 
                 reply_markup=self.keyboard_emos)

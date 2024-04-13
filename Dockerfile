@@ -21,7 +21,7 @@ RUN apt-get update \
 
 # Копирование моделей в контейнер
 COPY ./models/haarcascade_frontalface_default.xml /models/haarcascade_frontalface_default.xml
-COPY ./models/k03.28_13-28-55_e19.pth /models/k03.28_13-28-55_e19.pth
+COPY ./models/k03.31_15-32-20_e9.pth /models/k03.31_15-32-20_e9.pth
 
 COPY ./emo_imgs /emo_imgs
 

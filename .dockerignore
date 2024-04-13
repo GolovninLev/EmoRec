@@ -1,7 +1,9 @@
 data
+diagrams
 
 models/archive
-models/k01.23_08-47-18.pth
+models/k03.31_15-32-20_e9.pth
+# k01.23_13-28-01.pth # resnet
 
 input
 output

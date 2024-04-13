@@ -31,8 +31,8 @@ class EmoRec:
         model_name_photo = 'vgg19' # resnet50 vgg19
         model_name_video = 'vgg19' # resnet50 vgg19
         
-        path_to_pr_model_photo = str(self.root_dir / 'models' / 'k03.28_13-28-55_e19.pth') # k01.23_08-47-18.pth k03.28_13-28-55_e19.pth
-        path_to_pr_model_video = str(self.root_dir / 'models' / 'k03.28_13-28-55_e19.pth') # k01.23_08-47-18.pth k03.28_13-28-55_e19.pth
+        path_to_pr_model_photo = str(self.root_dir / 'models' / 'k03.31_15-32-20_e9.pth')
+        path_to_pr_model_video = str(self.root_dir / 'models' / 'k03.31_15-32-20_e9.pth')
         
         self.hist_len = 2
         self.total_eval_ever_n_frames = 8
