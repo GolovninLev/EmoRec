@@ -18,6 +18,8 @@ import vgg_face_dag
 from io import BytesIO
 import tempfile
 
+import traceback
+
 
 def get_most_common_elem(arr):
     counter = Counter(arr)
@@ -34,8 +36,6 @@ class EmoRec:
         path_to_pr_model_photo = str(self.root_dir / 'models' / 'k03.31_15-32-20_e9.pth')
         path_to_pr_model_video = str(self.root_dir / 'models' / 'k03.31_15-32-20_e9.pth')
         
-        self.hist_len = 2
-        self.total_eval_ever_n_frames = 8
         
         self.image_transforms =  transforms.Compose([
                 transforms.ToPILImage(),            # Преобразование в PIL Image
@@ -261,8 +261,6 @@ class EmoRec:
             # es = 10
             # el = 30
             
-            # Инициализация параметров хранения недавней истории эмоций на лицах
-            faces_emo_hist = deque(maxlen=self.hist_len + 1)
             
             frames_counter = 0
 
@@ -309,23 +307,15 @@ class EmoRec:
                     # Если детектор нашёл лица И ОНИ БЫЛИ НА 3 ПРЕД. КАДРАХ
                     if clipped_face_frame.size != 0: 
                         
-                        if frames_counter % self.total_eval_ever_n_frames == 0 or frames_counter == 1: # можно не каждый кадр модели отдавать модели, чтоб урать мелькание нарисованных эмоций и снизить нагрузку
-                            prediction = self.predict(clipped_face_frame, 'photo')
-                            # prediction = 1
+                        prediction = self.predict(clipped_face_frame, 'photo')
 
-                            faces_emo_hist.append(int(np.argmax(prediction)))
-                            most_common_pred = get_most_common_elem(faces_emo_hist)
                             
-                            result_emotion_label = self.emotion_labels[most_common_pred]
+                        result_emotion_label = self.emotion_labels[int(np.argmax(prediction))]
                             
-                            print(f'{(frames_counter / (all_frames_num * 1.1) * 100.0):.2f}%')
+                        print(f'{(frames_counter / (all_frames_num * 1.1) * 100.0):.2f}%')
                             
                             
-                        elif frames_counter % self.total_eval_ever_n_frames in range(8 - self.hist_len, 8): 
-                            prediction = self.predict(clipped_face_frame, 'photo')
-                            # prediction = 1
                             
-                            faces_emo_hist.append(int(np.argmax(prediction)))
                         
                         
                         # Прописывание значка эмоции
@@ -357,6 +347,9 @@ class EmoRec:
                 
                 # Запись обработанного кадра в выходной файл
                 output_video.write(frame) 
+        
+        except Exception as e:
+            traceback.print_exc()
                 
         finally:
             # Закрытие input и output файлов
@@ -368,4 +361,3 @@ class EmoRec:
                 result = f.read()
 
             return result, str(output_file_path)
-
