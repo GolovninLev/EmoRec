@@ -236,8 +236,8 @@ class MyBot:
                 video_res, path_to_res_video = self.emo_rec.make_video(file_content, message.animation.file_id, self.face_sensitivity_video, self.smile_size, self.alpha, is_compress_result=self.is_compress_result, compress_video_fps = self.compress_video_fps) # .animation. ~= .document. != .gif.
                 
         except Exception as e:
-            self.bot.reply_to(message, str(e))
             traceback.print_exc()
+            self.bot.reply_to(message, str(e))
 
         # Отправка видео
         if self.shipping_method == 'telegram':
@@ -246,6 +246,7 @@ class MyBot:
                 
             except Exception as e:
                 print({str(e)}) # A request to the Telegram API was unsuccessful. Error code: 413. Description: Request Entity Too Large 
+                traceback.print_exc()
                 self.bot.send_message(message.chat.id, 
                     f"\nВидео оказалось слишком большимм для текущего уровня Telegram API, попробуйте выбрать в вариантах отправки google drive", 
                     reply_markup=self.keyboard_base)
