@@ -33,8 +33,8 @@ class EmoRec:
         model_name_photo = 'vgg19' # resnet50 vgg19
         model_name_video = 'vgg19' # resnet50 vgg19
         
-        path_to_pr_model_photo = str(self.root_dir / 'models' / 'k03.31_15-32-20_e9.pth')
-        path_to_pr_model_video = str(self.root_dir / 'models' / 'k03.31_15-32-20_e9.pth')
+        path_to_pr_model_photo = str(self.root_dir / 'models' / 'emo_rec_model.pth')
+        path_to_pr_model_video = str(self.root_dir / 'models' / 'emo_rec_model.pth')
         
         
         self.image_transforms =  transforms.Compose([

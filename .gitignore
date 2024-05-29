@@ -2,7 +2,7 @@ data
 diagrams
 
 models/archive
-models/k03.31_15-32-20_e9.pth
+models/emo_rec_model.pth
 # models/k01.23_13-28-01.pth # resnet
 
 input
