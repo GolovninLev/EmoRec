@@ -34,4 +34,6 @@ COPY ./src/run.py /src/run.py
 RUN mkdir /output
 RUN mkdir /.secrets
 
+COPY ./.secrets/client_secrets.json /.secrets/client_secrets.json
+
 CMD ["python3", "/src/run.py"]

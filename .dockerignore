@@ -10,7 +10,7 @@ output
 wandb
 history
 
-client_secrets.json
+# client_secrets.json
 
 
 .env
@@ -56,4 +56,4 @@ temp/
 *.swp
 
 # файлы секретов
-.secrets/
+# .secrets/
