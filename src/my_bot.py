@@ -41,7 +41,8 @@ class MyBot:
     
     def __init__(self):
         
-        self.bot = telebot.TeleBot('6829160910:AAEmmlh0aB567vnpfSsFeTA7CV1Z_vGl3XA', skip_pending=True)
+        self.bot = telebot.TeleBot(os.getenv('TOKEN'), skip_pending=True)
+        
         
         self.emo_rec = EmoRec()
         
@@ -66,6 +67,7 @@ class MyBot:
         self.previous_command = ''
         self.face_sensitivity_photo = 14
         self.face_sensitivity_video = 12
+        self.area_plot_dote_by_sec = 0.05
         self.smile_size = 120
         self.alpha = 0.5
         self.new_icon_sent = False
@@ -221,19 +223,30 @@ class MyBot:
 
         try:
             if message.content_type == 'video':
-                file = self.bot.get_file(message.video.file_id)
-                file_content = self.bot.download_file(file.file_path)
-                self.bot.send_message(message.chat.id, 
-                    f"Начинаем обрабатывать ваше видео...", 
-                    reply_markup=self.keyboard_base)
-                video_res, path_to_res_video = self.emo_rec.make_video(file_content, message.video.file_id, self.face_sensitivity_video, self.smile_size, self.alpha, is_compress_result=self.is_compress_result, compress_video_fps = self.compress_video_fps)
+                t_file_id = message.video.file_id
             if message.content_type == 'animation': # .animation. ~= .document. != .gif.
-                file = self.bot.get_file(message.animation.file_id) # .animation. ~= .document. != .gif.
-                file_content = self.bot.download_file(file.file_path)
-                self.bot.send_message(message.chat.id, 
-                    f"Начинаем обрабатывать ваше видео...", 
-                    reply_markup=self.keyboard_base)
-                video_res, path_to_res_video = self.emo_rec.make_video(file_content, message.animation.file_id, self.face_sensitivity_video, self.smile_size, self.alpha, is_compress_result=self.is_compress_result, compress_video_fps = self.compress_video_fps) # .animation. ~= .document. != .gif.
+                t_file_id = message.animation.file_id
+            
+            file = self.bot.get_file(t_file_id) 
+            file_content = self.bot.download_file(file.file_path)
+            
+            # import pickle
+            # with open('file_content.pkl', 'wb') as f:
+            #     pickle.dump(file_content, f)
+            
+            self.bot.send_message(message.chat.id, 
+                f"Начинаем обрабатывать ваше видео...", 
+                reply_markup=self.keyboard_base)
+            
+            video_res, path_to_res_video, area_plot_res_html, area_plot_png = self.emo_rec.make_video(
+                    file_content, 
+                    self.face_sensitivity_video, 
+                    self.smile_size, 
+                    self.alpha, 
+                    is_compress_result=self.is_compress_result, 
+                    compress_video_fps = self.compress_video_fps, 
+                    area_plot_dote_by_sec = self.area_plot_dote_by_sec
+                )
                 
         except Exception as e:
             traceback.print_exc()
@@ -243,6 +256,8 @@ class MyBot:
         if self.shipping_method == 'telegram':
             try:
                 self.bot.send_video(message.chat.id, video_res)
+                self.bot.send_document(message.chat.id, area_plot_res_html, visible_file_name="Area plot.html")
+                self.bot.send_document(message.chat.id, area_plot_png, visible_file_name="Area plot.png")
                 
             except Exception as e:
                 print({str(e)}) # A request to the Telegram API was unsuccessful. Error code: 413. Description: Request Entity Too Large 

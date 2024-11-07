@@ -20,6 +20,9 @@ import tempfile
 
 import traceback
 
+from graphs import generate_emotion_map_html
+from graphs import generate_emotion_map_png
+
 
 def get_most_common_elem(arr):
     counter = Counter(arr)
@@ -212,7 +215,7 @@ class EmoRec:
 
 # ##########################################################
 
-    def make_video(self, file_content, file_id, face_sensitivity, smile_size, alpha, is_compress_result=False, compress_video_fps=20):
+    def make_video(self, file_content, face_sensitivity, smile_size, alpha, is_compress_result=False, compress_video_fps=20, area_plot_dote_by_sec=0.05):
         
         if self.smile_size != smile_size:
             self.smile_size = smile_size
@@ -243,13 +246,13 @@ class EmoRec:
             output_file_path = self.output_file_path / self.output_file_name
         
             # VideoWriter - сохранятор нового видео
+            input_video_fps = input_video.get(cv2.CAP_PROP_FPS)
             if is_compress_result:
                 codec = cv2.VideoWriter_fourcc(*'XVID')
                 output_video = cv2.VideoWriter(str(output_file_path), codec, compress_video_fps, (width, height))
             else:
-                fps = input_video.get(cv2.CAP_PROP_FPS)
                 codec = cv2.VideoWriter_fourcc(*'mp4v')
-                output_video = cv2.VideoWriter(str(output_file_path), codec, fps, (width, height))
+                output_video = cv2.VideoWriter(str(output_file_path), codec, input_video_fps, (width, height))
             if not output_video.isOpened():
                 print("Ошибка: Не удалось создать объект VideoWriter")
                 return "Ошибка: Не удалось создать объект VideoWriter"
@@ -262,6 +265,12 @@ class EmoRec:
             
             
             frames_counter = 0
+            
+            video_emotions_stats = [np.zeros(len(self.emotion_labels)) 
+                                    for _ in range((all_frames_num 
+                                                    # // (int(input_video_fps * area_plot_dote_by_sec) + 1)
+                                                    + 1))]
+            stats_counter = 0
 
 
             # Чтение и обработка кадров
@@ -308,7 +317,11 @@ class EmoRec:
                         
                         prediction = self.predict(clipped_face_frame, 'photo')
 
-                            
+                        if frames_counter % int(input_video_fps * area_plot_dote_by_sec) == 0:
+                            t = torch.softmax(torch.tensor(np.array(prediction)[0]), dim=0).numpy()
+                            video_emotions_stats[stats_counter] += t
+                            stats_counter += 1
+                        
                         result_emotion_label = self.emotion_labels[int(np.argmax(prediction))]
                             
                         print(f'{(frames_counter / (all_frames_num * 1.1) * 100.0):.2f}%')
@@ -359,4 +372,18 @@ class EmoRec:
             with open(str(output_file_path), 'rb') as f:
                 result = f.read()
 
-            return result, str(output_file_path)
+            video_emotions_stats = [arr for arr in video_emotions_stats if np.any(arr)]
+            labels_ru = ["Гнев", "Презрение", "Отвращение", "Страх", 
+                         "Счастье", "Нейтральность", "Грусть", "Удивление"]
+            
+            html_graph = generate_emotion_map_html(
+                video_emotions_stats, 
+                labels_ru, 
+                input_video_fps)
+            
+            html_png = generate_emotion_map_png(
+                video_emotions_stats, 
+                labels_ru, 
+                input_video_fps)
+
+            return result, str(output_file_path), html_graph, html_png
