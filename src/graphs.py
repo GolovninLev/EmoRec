@@ -150,6 +150,6 @@ def generate_emotion_map_png(data, labels, input_video_fps, num_ticks=15):
 
     # Возврат BytesIO файла
     buf = BytesIO()
-    plt.savefig(buf, format='png')
+    plt.savefig(buf, format='jpg')
     buf.seek(0)
     return buf

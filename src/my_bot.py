@@ -43,7 +43,6 @@ class MyBot:
         
         self.bot = telebot.TeleBot(os.getenv('TOKEN'), skip_pending=True)
         
-        
         self.emo_rec = EmoRec()
         
         self.shipping_method = 'telegram' # telegram google_drive
@@ -203,7 +202,7 @@ class MyBot:
                     self.bot.send_photo(message.chat.id, image_res)
                     
             if self.shipping_method == 'google_drive':
-                    self.upload_file_to_google_drive(image_res, mode='photo')
+                    self.upload_file_to_google_drive(image_res, mode='photo', file_name='Photo with emotions.png')
                     self.bot.send_message(message.chat.id, 
                         f"Фото отправлено на google drive...", 
                         reply_markup=self.keyboard_base)
@@ -273,7 +272,9 @@ class MyBot:
                 self.bot.send_message(message.chat.id, 
                     f"Отправляем видео на google drive...", 
                     reply_markup=self.keyboard_base)
-                self.upload_file_to_google_drive(path_to_res_video, mode='video')
+                self.upload_file_to_google_drive(path_to_res_video, mode='video', file_name='Video with emotions.mp4')
+                self.upload_file_to_google_drive(area_plot_res_html, mode='html', file_name='Area plot.html')
+                self.upload_file_to_google_drive(area_plot_png, mode='photo_b', file_name='Area plot.png')
                 self.bot.send_message(message.chat.id, 
                     f"Видео отправлено на google drive", 
                     reply_markup=self.keyboard_base)
@@ -345,9 +346,10 @@ class MyBot:
         # Проверка корректности
         if self.credentials and self.credentials.valid:
             self.bot.send_message(message.chat.id, 
-                                        "Авторизация прошла успешно", 
+                                        "Авторизация прошла успешно\nСпособ получения результата изменён на google drive", 
                                         reply_markup=self.keyboard_settings)
             self.update_login_google = False
+            self.shipping_method = 'google_drive'
         else:
             self.bot.send_message(message.chat.id, 
                                         "Авторизация не удалась", 
@@ -356,14 +358,20 @@ class MyBot:
 
 
 
-    def upload_file_to_google_drive(self, file_path, mode): 
+    def upload_file_to_google_drive(self, file_path, mode, file_name): 
         # Подготовка файла
         if mode == 'video':
             media = MediaFileUpload(file_path, resumable=True)
-            file_metadata = {'name': 'emo_rec_output.mp4'}
+            file_metadata = {'name': file_name}
         if mode == 'photo':
-            file_metadata = {'name': 'emo_rec_output.jpg'}
+            file_metadata = {'name': file_name}
             media = MediaIoBaseUpload(io.BytesIO(file_path), mimetype="image/jpeg", resumable=True)
+        if mode == 'photo_b':
+            file_metadata = {'name': file_name}
+            media = MediaIoBaseUpload(file_path, mimetype="image/jpeg", resumable=True)
+        if mode == 'html':
+            file_metadata = {'name': file_name}
+            media = MediaIoBaseUpload(io.BytesIO(file_path), mimetype="text/html", resumable=True)
 
 
         # Загрузка файла на Google Диск

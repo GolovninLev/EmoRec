@@ -270,7 +270,6 @@ class EmoRec:
                                     for _ in range((all_frames_num 
                                                     # // (int(input_video_fps * area_plot_dote_by_sec) + 1)
                                                     + 1))]
-            stats_counter = 0
 
 
             # Чтение и обработка кадров
@@ -317,10 +316,11 @@ class EmoRec:
                         
                         prediction = self.predict(clipped_face_frame, 'photo')
 
-                        if frames_counter % int(input_video_fps * area_plot_dote_by_sec) == 0:
+                        t = int(input_video_fps * area_plot_dote_by_sec)
+                        if t == 0 or frames_counter % t == 0:
                             t = torch.softmax(torch.tensor(np.array(prediction)[0]), dim=0).numpy()
-                            video_emotions_stats[stats_counter] += t
-                            stats_counter += 1
+                            video_emotions_stats[frames_counter] += t
+                        
                         
                         result_emotion_label = self.emotion_labels[int(np.argmax(prediction))]
                             
