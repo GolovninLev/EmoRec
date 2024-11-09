@@ -19,6 +19,7 @@ from io import BytesIO
 import tempfile
 
 import traceback
+import csv
 
 from graphs import generate_emotion_map_html
 from graphs import generate_emotion_map_png
@@ -39,6 +40,7 @@ class EmoRec:
         path_to_pr_model_photo = str(self.root_dir / 'models' / 'emo_rec_model.pth')
         path_to_pr_model_video = str(self.root_dir / 'models' / 'emo_rec_model.pth')
         
+        self.offset = 15
         
         self.image_transforms =  transforms.Compose([
                 transforms.ToPILImage(),            # Преобразование в PIL Image
@@ -51,6 +53,16 @@ class EmoRec:
         ])
 
         self.emotion_labels = {0: "anger", 1: "contempt", 2: "disgust", 3: "fear", 4: "happy", 5: "neutral", 6: "sad", 7: "surprise"}
+        self.labels_ru = ["Гнев", "Презрение", "Отвращение", "Страх", 
+                         "Счастье", "Нейтральность", "Грусть", "Удивление"]
+        self.emo_buttons = [f'\U0001F616 {self.labels_ru[0]}',
+            f'\U0001F60F {self.labels_ru[1]}',
+            f'\U0001F621 {self.labels_ru[2]}',
+            f'\U0001F628 {self.labels_ru[3]}',
+            f'\U0001F604 {self.labels_ru[4]}',
+            f'\U0001F610 {self.labels_ru[5]}',
+            f'\U0001F622 {self.labels_ru[6]}',
+            f'\U0001F62E {self.labels_ru[7]}']
         
         self.output_file_path = Path(str(self.root_dir / 'output'))
         self.output_file_name = Path(r'output.mp4')
@@ -160,6 +172,10 @@ class EmoRec:
         # Поиск лиц на фото
         faces_locations = self.face_finder.detectMultiScale(image, minNeighbors=self.face_sensitivity_photo, minSize=(48, 48), scaleFactor=1.1) 
         
+        
+        texts_return = []
+        faces_return = []
+
 
         # Рисование прямоугольников вокруг обнаруженных лиц
         for (x, y, w, h) in faces_locations:
@@ -168,12 +184,22 @@ class EmoRec:
             # cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 1)
             
             # Вырезание лица для передачи модели
-            clipped_face_frame = image[y:y + h, x:x + w]
+            clipped_face_frame = image[y - self.offset : y + h + self.offset, 
+                                       x - self.offset : x + w + self.offset]
             clipped_face_frame = cv2.resize(clipped_face_frame, (224, 224), interpolation=cv2.INTER_AREA)
+            _, img_encoded = cv2.imencode('.jpg', clipped_face_frame)
+            faces_return.append(img_encoded.tobytes())
             
             # Если детектор нашёл лица
             if clipped_face_frame.size != 0: 
                 prediction = self.predict(clipped_face_frame, 'photo')
+                p = torch.softmax(torch.tensor(np.array(prediction)[0]), dim=0).numpy()
+                
+                sorted_emo = sorted(zip(self.emo_buttons, p), key=lambda x: x[1], reverse=True)
+                text_return = f'Распределение эмоций на фото ниже:\n'
+                text_return += '\n'.join([f'{label} - {(100 * prob):.0f}%' for label, prob in sorted_emo if prob > 0.1])
+                
+                texts_return.append(text_return)
                 result_emotion_label = self.emotion_labels[int(np.argmax(prediction))]
                 
                 
@@ -207,7 +233,7 @@ class EmoRec:
         
         _, img_encoded = cv2.imencode('.jpg', image)
         image_bytes = img_encoded.tobytes()
-        return image_bytes
+        return image_bytes, texts_return, faces_return
 
 
 
@@ -270,7 +296,10 @@ class EmoRec:
                                     for _ in range((all_frames_num 
                                                     # // (int(input_video_fps * area_plot_dote_by_sec) + 1)
                                                     + 1))]
-
+            total_prediction = np.zeros(len(self.emotion_labels))
+            csv_data = [
+                ['Вермя (час:мин:сек.мс)', 'Кадр', *self.labels_ru]
+            ]
 
             # Чтение и обработка кадров
             while True:
@@ -278,6 +307,7 @@ class EmoRec:
                 # Захват очередного кадра
                 video_is_still_processing, frame = input_video.read() 
                 frames_counter += 1
+                frame_prediction = np.zeros(len(self.emotion_labels))
                 
                 # Проверка, достигнут ли конец видео
                 if not video_is_still_processing:
@@ -318,16 +348,14 @@ class EmoRec:
 
                         t = int(input_video_fps * area_plot_dote_by_sec)
                         if t == 0 or frames_counter % t == 0:
-                            t = torch.softmax(torch.tensor(np.array(prediction)[0]), dim=0).numpy()
-                            video_emotions_stats[frames_counter] += t
+                            frame_prediction += np.array(prediction)[0]
                         
                         
                         result_emotion_label = self.emotion_labels[int(np.argmax(prediction))]
                             
-                        print(f'{(frames_counter / (all_frames_num * 1.1) * 100.0):.2f}%')
-                            
-                            
-                            
+                        
+                        
+                        
                         
                         
                         # Прописывание значка эмоции
@@ -359,6 +387,24 @@ class EmoRec:
                 
                 # Запись обработанного кадра в выходной файл
                 output_video.write(frame) 
+                
+                if len(faces_locations) > 0: 
+                    p = torch.softmax(torch.tensor(np.array(frame_prediction)), dim=0).numpy()
+                else:
+                    p = np.zeros(len(self.emotion_labels))
+                video_emotions_stats[frames_counter] += p
+                total_prediction += p
+                
+                total_seconds = frames_counter / input_video_fps
+                h = int(total_seconds // 3600)
+                m = int((total_seconds % 3600) // 60)
+                s = int(total_seconds % 60)
+                ms = int((total_seconds - int(total_seconds)) * 1000)
+                csv_data.append([f"{h:02.0f}:{m:02.0f}:{s:02.0f}.{ms:03.0f}", frames_counter, *p])
+                
+                if int(frames_counter % input_video_fps) == 0:
+                    # print(f'{frames_counter} кадров обработано')
+                    print(f'{(frames_counter / (all_frames_num * 1.1) * 100.0):.2f}% кадров обработано')
         
         except Exception as e:
             traceback.print_exc()
@@ -372,18 +418,32 @@ class EmoRec:
             with open(str(output_file_path), 'rb') as f:
                 result = f.read()
 
-            video_emotions_stats = [arr for arr in video_emotions_stats if np.any(arr)]
-            labels_ru = ["Гнев", "Презрение", "Отвращение", "Страх", 
-                         "Счастье", "Нейтральность", "Грусть", "Удивление"]
+            # video_emotions_stats = [arr for arr in video_emotions_stats if np.any(arr)]
             
             html_graph = generate_emotion_map_html(
                 video_emotions_stats, 
-                labels_ru, 
+                self.emo_buttons, 
                 input_video_fps)
             
             html_png = generate_emotion_map_png(
                 video_emotions_stats, 
-                labels_ru, 
+                self.emo_buttons, 
                 input_video_fps)
+            
+            
+            
+            text_return = f'Распределение наиболее частых эмоций в видео:\n'
+            
+            p = np.array(total_prediction) / np.sum(total_prediction)
+            sorted_emo = sorted(zip(self.emo_buttons, p), key=lambda x: x[1], reverse=True)
+            text_return += '\n'.join([f'{label} - {(100 * prob):.0f}%:' for label, prob in sorted_emo if prob >= 0.01])
+            
+            csvfile = BytesIO()
+            csvfile.write(b'')  # Очистить файл
+            writer = csv.writer(csvfile)
+            for row in csv_data:
+                csvfile.write(b','.join([str(x).encode('utf-8') for x in row]) + b'\n')
+            csvfile.seek(0)
 
-            return result, str(output_file_path), html_graph, html_png
+
+            return result, str(output_file_path), html_graph, html_png, text_return, csvfile

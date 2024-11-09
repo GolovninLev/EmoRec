@@ -86,7 +86,7 @@ class MyBot:
         self.t_set_face_sensitivity_photo = "\U00002699 \U0001F50D Сила поиска лиц на фото"
         self.t_set_face_sensitivity_video = "\U00002699 \U0001F50D Силу поиска лиц на видео"
         
-        self.t_location_receive_result = "\U000026F3 Способ получения результата"
+        self.t_location_receive_result = "\U000026F3 Способ получения видео"
         self.t_reset_google_drive = "\U0001F512 Войти/сменить аккаунт google drive"
         
         self.t_back = "\U000025C0 Назад"
@@ -181,7 +181,7 @@ class MyBot:
                 self.smile_size += 1
                 return
             
-            image_res = self.emo_rec.make_image(file_content, self.face_sensitivity_photo, self.smile_size, self.alpha)
+            image_res, texts_return, faces_return = self.emo_rec.make_image(file_content, self.face_sensitivity_photo, self.smile_size, self.alpha)
             
             # self.bot.send_photo(message.chat.id, result)
             
@@ -198,14 +198,17 @@ class MyBot:
         
          # Отправка фото
         try:
-            if self.shipping_method == 'telegram':
-                    self.bot.send_photo(message.chat.id, image_res)
+            self.bot.send_photo(message.chat.id, image_res)
+            for text, face in zip(texts_return, faces_return):
+                self.bot.send_message(message.chat.id, text, 
+                        reply_markup=self.keyboard_base)
+                self.bot.send_photo(message.chat.id, face)
                     
             if self.shipping_method == 'google_drive':
-                    self.upload_file_to_google_drive(image_res, mode='photo', file_name='Photo with emotions.png')
-                    self.bot.send_message(message.chat.id, 
-                        f"Фото отправлено на google drive...", 
-                        reply_markup=self.keyboard_base)
+                self.upload_file_to_google_drive(image_res, mode='photo', file_name='Photo with emotions.png')
+                self.bot.send_message(message.chat.id, 
+                    f"Фото с аннотациями также отправлено на google drive...", 
+                    reply_markup=self.keyboard_base)
 
         except Exception as e:
             self.bot.reply_to(message, str(e))
@@ -237,7 +240,7 @@ class MyBot:
                 f"Начинаем обрабатывать ваше видео...", 
                 reply_markup=self.keyboard_base)
             
-            video_res, path_to_res_video, area_plot_res_html, area_plot_png = self.emo_rec.make_video(
+            video_res, path_to_res_video, area_plot_res_html, area_plot_png, text_return, csv_file = self.emo_rec.make_video(
                     file_content, 
                     self.face_sensitivity_video, 
                     self.smile_size, 
@@ -252,11 +255,16 @@ class MyBot:
             self.bot.reply_to(message, str(e))
 
         # Отправка видео
+        self.bot.send_document(message.chat.id, area_plot_res_html, visible_file_name="Area plot.html")
+        self.bot.send_document(message.chat.id, area_plot_png, visible_file_name="Area plot.png")
+        self.bot.send_document(message.chat.id, csv_file.read(), visible_file_name="Area plot data.csv")
+        self.bot.send_message(message.chat.id, 
+                text_return, 
+                reply_markup=self.keyboard_base)
+        
         if self.shipping_method == 'telegram':
             try:
                 self.bot.send_video(message.chat.id, video_res)
-                self.bot.send_document(message.chat.id, area_plot_res_html, visible_file_name="Area plot.html")
-                self.bot.send_document(message.chat.id, area_plot_png, visible_file_name="Area plot.png")
                 
             except Exception as e:
                 print({str(e)}) # A request to the Telegram API was unsuccessful. Error code: 413. Description: Request Entity Too Large 
@@ -273,10 +281,14 @@ class MyBot:
                     f"Отправляем видео на google drive...", 
                     reply_markup=self.keyboard_base)
                 self.upload_file_to_google_drive(path_to_res_video, mode='video', file_name='Video with emotions.mp4')
-                self.upload_file_to_google_drive(area_plot_res_html, mode='html', file_name='Area plot.html')
-                self.upload_file_to_google_drive(area_plot_png, mode='photo_b', file_name='Area plot.png')
+                # self.upload_file_to_google_drive(area_plot_res_html, mode='html', file_name='Area plot.html')
+                # self.upload_file_to_google_drive(area_plot_png, mode='photo_b', file_name='Area plot.png')
+                # self.upload_file_to_google_drive(csv_file, mode='csv', file_name='Area plot data.csv')
+                # self.bot.send_message(message.chat.id, 
+                #         text_return, 
+                #         reply_markup=self.keyboard_base)
                 self.bot.send_message(message.chat.id, 
-                    f"Видео отправлено на google drive", 
+                    f"Видео, графики в формате html и png и csv отправлены на google drive", 
                     reply_markup=self.keyboard_base)
             except Exception as e:
                 self.bot.reply_to(message, str(e))
@@ -360,18 +372,17 @@ class MyBot:
 
     def upload_file_to_google_drive(self, file_path, mode, file_name): 
         # Подготовка файла
+        file_metadata = {'name': file_name}
         if mode == 'video':
             media = MediaFileUpload(file_path, resumable=True)
-            file_metadata = {'name': file_name}
         if mode == 'photo':
-            file_metadata = {'name': file_name}
             media = MediaIoBaseUpload(io.BytesIO(file_path), mimetype="image/jpeg", resumable=True)
         if mode == 'photo_b':
-            file_metadata = {'name': file_name}
             media = MediaIoBaseUpload(file_path, mimetype="image/jpeg", resumable=True)
         if mode == 'html':
-            file_metadata = {'name': file_name}
             media = MediaIoBaseUpload(io.BytesIO(file_path), mimetype="text/html", resumable=True)
+        if mode == 'csv':
+            media = MediaIoBaseUpload(file_path, mimetype="text/csv", resumable=True)
 
 
         # Загрузка файла на Google Диск
@@ -446,7 +457,7 @@ class MyBot:
         
         if message.text == self.t_location_receive_result:
             self.bot.send_message(message.chat.id, 
-                f"Выберите место получения результата", 
+                f"Выберите место получения видео", 
                 reply_markup=self.keyboard_shipping_method)
 
 
