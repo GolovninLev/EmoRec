@@ -24,7 +24,9 @@ def generate_emotion_map_html(data, labels, input_video_fps, num_ticks=15):
         line=dict(color=colors[i]),
         stackgroup='one',
         name=labels[i],
-        opacity=1
+        opacity=0.84,
+        fillcolor=colors[i],  # добавляем цвет под графиком
+        fill='tonexty'  # указываем, что цвет должен заполнять область под графиком tozeroy tonexty toself
     ) for i in range(data.shape[1])])
     fig.update_layout(title_text="Карта эмоций на видео")
 
@@ -67,8 +69,8 @@ def generate_emotion_map_html(data, labels, input_video_fps, num_ticks=15):
                 dict(dtickrange=[None, 60], value="%S"),
                 dict(dtickrange=[60, 3600], value="%M:%S"),
                 dict(dtickrange=[3600, None], value="%H:%M:%S")
-            ]
-        )
+            ],
+        ),
     )
 
 
