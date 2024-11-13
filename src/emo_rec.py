@@ -55,14 +55,15 @@ class EmoRec:
         self.emotion_labels = {0: "anger", 1: "contempt", 2: "disgust", 3: "fear", 4: "happy", 5: "neutral", 6: "sad", 7: "surprise"}
         self.labels_ru = ["Гнев", "Презрение", "Отвращение", "Страх", 
                          "Счастье", "Нейтральность", "Грусть", "Удивление"]
-        self.emo_buttons = [f'\U0001F616 {self.labels_ru[0]}',
+        self.emo_buttons = [
+            f'\U0001F621 {self.labels_ru[0]}',
             f'\U0001F60F {self.labels_ru[1]}',
-            f'\U0001F621 {self.labels_ru[2]}',
+            f'\U0001F922 {self.labels_ru[2]}',
             f'\U0001F628 {self.labels_ru[3]}',
             f'\U0001F604 {self.labels_ru[4]}',
             f'\U0001F610 {self.labels_ru[5]}',
-            f'\U0001F622 {self.labels_ru[6]}',
-            f'\U0001F62E {self.labels_ru[7]}']
+            f'\U0001F61E {self.labels_ru[6]}',
+            f'\U0001F631 {self.labels_ru[7]}']
         
         self.output_file_path = Path(str(self.root_dir / 'output'))
         self.output_file_name = Path(r'output.mp4')

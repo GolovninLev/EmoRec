@@ -122,14 +122,15 @@ class MyBot:
 
         self.keyboard_emos = ReplyKeyboardMarkup(resize_keyboard = True)
         
-        self.emo_buttons = [f'\U0001F616 {self.emotion_labels[0]}',
+        self.emo_buttons = [
+            f'\U0001F621 {self.emotion_labels[0]}',
             f'\U0001F60F {self.emotion_labels[1]}',
-            f'\U0001F621 {self.emotion_labels[2]}',
+            f'\U0001F922 {self.emotion_labels[2]}',
             f'\U0001F628 {self.emotion_labels[3]}',
             f'\U0001F604 {self.emotion_labels[4]}',
             f'\U0001F610 {self.emotion_labels[5]}',
-            f'\U0001F622 {self.emotion_labels[6]}',
-            f'\U0001F62E {self.emotion_labels[7]}']
+            f'\U0001F61E {self.emotion_labels[6]}',
+            f'\U0001F631 {self.emotion_labels[7]}']
         
         self.keyboard_emos.add(KeyboardButton(text=self.emo_buttons[0]))
         self.keyboard_emos.add(KeyboardButton(text=self.emo_buttons[1]))
@@ -198,11 +199,11 @@ class MyBot:
         
          # Отправка фото
         try:
-            self.bot.send_photo(message.chat.id, image_res)
             for text, face in zip(texts_return, faces_return):
                 self.bot.send_message(message.chat.id, text, 
                         reply_markup=self.keyboard_base)
                 self.bot.send_photo(message.chat.id, face)
+            self.bot.send_photo(message.chat.id, image_res)
                     
             if self.shipping_method == 'google_drive':
                 self.upload_file_to_google_drive(image_res, mode='photo', file_name='Photo with emotions.png')
@@ -255,12 +256,10 @@ class MyBot:
             self.bot.reply_to(message, str(e))
 
         # Отправка видео
+        self.bot.send_message(message.chat.id, text_return, reply_markup=self.keyboard_base)
         self.bot.send_document(message.chat.id, area_plot_res_html, visible_file_name="Area plot.html")
         self.bot.send_document(message.chat.id, area_plot_png, visible_file_name="Area plot.png")
         self.bot.send_document(message.chat.id, csv_file.read(), visible_file_name="Area plot data.csv")
-        self.bot.send_message(message.chat.id, 
-                text_return, 
-                reply_markup=self.keyboard_base)
         
         if self.shipping_method == 'telegram':
             try:
@@ -401,7 +400,7 @@ class MyBot:
         # Создание меню с кнопками
         
         self.bot.send_message(message.chat.id, 
-                        "Отпрвьте фото или видео и получите их обработанную версию назад \n\nЕсли пределы API телеграмма будут превышены, то вам будет предложено сохранить видео на google drive", 
+                        "Отпрвьте фото или видео и получите описание эмоций в них и обработанную версию назад. \nВ случае видео вы также получите график распределения эмоций по времени и данные, на которых он был построен. \n\nЕсли пределы API телеграмма будут превышены, то вам будет предложено сохранить видео на google drive", 
                         reply_markup=self.keyboard_base)
 
 
