@@ -146,7 +146,7 @@ def generate_emotion_map_png(data, labels, input_video_fps, num_ticks=15):
 
 
     # Легенда графика
-    plt.legend(labels, loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=4)
+    plt.legend([l.replace('\U0001F922', '\U0001F612') for l in labels], loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=4)
     plt.tight_layout(rect=[0, 0, 1, 1.03])  # добавление отступа сверху
 
 
