@@ -185,8 +185,15 @@ class EmoRec:
             # cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 1)
             
             # Вырезание лица для передачи модели
-            clipped_face_frame = image[y - self.offset : y + h + self.offset, 
-                                       x - self.offset : x + w + self.offset]
+            image_height, image_width = image.shape[:2]
+            
+            x1 = max(0, x - self.offset)
+            y1 = max(0, y - self.offset)
+            x2 = min(image_width, x + w + self.offset)
+            y2 = min(image_height, y + h + self.offset)
+            
+            clipped_face_frame = image[y1:y2, x1:x2]
+            
             clipped_face_frame = cv2.resize(clipped_face_frame, (224, 224), interpolation=cv2.INTER_AREA)
             _, img_encoded = cv2.imencode('.jpg', clipped_face_frame)
             faces_return.append(img_encoded.tobytes())
