@@ -13,8 +13,6 @@ from collections import deque
 from collections import Counter
 
 
-import vgg_face_dag
-
 from io import BytesIO
 import tempfile
 
@@ -39,6 +37,8 @@ class EmoRec:
         # ##################################### Свойства
         model_name_photo = 'vgg19' # resnet50 vgg19
         model_name_video = 'vgg19' # resnet50 vgg19
+
+        self.face_finder_name = 'yolo'
         
         path_to_pr_model_photo = str(self.root_dir / 'models' / 'emo_rec_model.pth')
         path_to_pr_model_video = str(self.root_dir / 'models' / 'emo_rec_model.pth')
@@ -56,8 +56,8 @@ class EmoRec:
         ])
 
         self.emotion_labels = {0: "anger", 1: "contempt", 2: "disgust", 3: "fear", 4: "happy", 5: "neutral", 6: "sad", 7: "surprise"}
-        self.labels_ru = ["Гнев", "Презрение", "Отвращение", "Страх", 
-                         "Счастье", "Нейтральность", "Грусть", "Удивление"]
+        self.labels_ru = ["Злость", "Презрение", "Отвращение", "Страх", 
+                         "Счастье", "Нейтральность", "Печаль", "Удивление"]
         self.emo_buttons = [
             f'\U0001F621 {self.labels_ru[0]}',
             f'\U0001F60F {self.labels_ru[1]}',
@@ -77,8 +77,10 @@ class EmoRec:
         self.model_photo = self.init_model(model_name_photo, path_to_pr_model_photo)
         self.model_video = self.init_model(model_name_video, path_to_pr_model_video)
 
+        with open(self.root_dir / 'models' / 'YOLO_face_model.pkl', 'rb') as f:
+            self.model_YOLO_face = pickle.load(f)
         path_to_face_finder_model = str(self.root_dir / 'models' / 'haarcascade_frontalface_default.xml')
-        self.face_finder = cv2.CascadeClassifier(path_to_face_finder_model) 
+        self.model_Haar_cascades = cv2.CascadeClassifier(path_to_face_finder_model) 
         print('EmoRec init successful')
         
         
@@ -154,6 +156,20 @@ class EmoRec:
         return prediction.cpu()
 
 
+
+    def detect_faces_with_yolo(self, image):
+        output = self.model_YOLO_face(image, verbose=False)
+        
+        faces_locations = []
+
+        for pred in output[0].boxes.xyxy:  # output[0].boxes.xyxy - массив координат [x1, y1, x2, y2]
+            x1, y1, x2, y2 = map(int, pred)  # Преобразование в целые числа
+            faces_locations.append((x1, y1, x2 - x1, y2 - y1))  # Преобразование в (x, y, w, h)
+
+        return faces_locations
+
+
+
 # ################################################################################################################
 
     def make_image(self, file_content, face_sensitivity, smile_size, alpha):
@@ -174,7 +190,12 @@ class EmoRec:
             return "Не удалось загрузить изображение."
         
         # Поиск лиц на фото
-        faces_locations = self.face_finder.detectMultiScale(image, minNeighbors=self.face_sensitivity_photo, minSize=(48, 48), scaleFactor=1.1) 
+        if self.face_finder_name == 'yolo':
+            faces_locations = self.detect_faces_with_yolo(image)
+        else:
+            faces_locations = self.model_Haar_cascades.detectMultiScale(
+                image, minNeighbors=self.face_sensitivity_photo, 
+                minSize=(48, 48), scaleFactor=1.1) 
         
         
         texts_return = []
@@ -320,7 +341,7 @@ class EmoRec:
                 # Захват очередного кадра
                 video_is_still_processing, frame = input_video.read() 
                 frames_counter += 1
-                frame_prediction = np.zeros(len(self.emotion_labels))
+                frame_prediction_sum = np.zeros(len(self.emotion_labels))
                 
                 # Проверка, достигнут ли конец видео
                 if not video_is_still_processing:
@@ -328,7 +349,12 @@ class EmoRec:
                     break
                 
                 # Поиск лиц на кадре
-                faces_locations = self.face_finder.detectMultiScale(frame, minNeighbors=self.face_sensitivity_video, minSize=(48, 48), scaleFactor=1.1) 
+                if self.face_finder_name == 'yolo':
+                    faces_locations = self.detect_faces_with_yolo(frame)
+                else:
+                    faces_locations = self.model_Haar_cascades.detectMultiScale(
+                        frame, minNeighbors=self.face_sensitivity_photo, 
+                        minSize=(48, 48), scaleFactor=1.1) 
                 # faces_loc_hist.append(faces_locations) # и запись их расположений в недавную историю
                 
                 
@@ -361,7 +387,10 @@ class EmoRec:
 
                         t = int(input_video_fps * area_plot_dote_by_sec)
                         if t == 0 or frames_counter % t == 0:
-                            frame_prediction += np.array(prediction)[0]
+                            pred_soft = torch.softmax(torch.tensor(np.array(prediction[0])), dim=0).numpy()
+                            frame_prediction_sum += pred_soft
+                            
+                            print(f'\t{frames_counter} : one_face_pred: \t{pred_soft}')
                         
                         
                         result_emotion_label = self.emotion_labels[int(np.argmax(prediction))]
@@ -402,18 +431,19 @@ class EmoRec:
                 output_video.write(frame) 
                 
                 if len(faces_locations) > 0: 
-                    p = torch.softmax(torch.tensor(np.array(frame_prediction)), dim=0).numpy()
+                    frame_prediction_norm = frame_prediction_sum / len(faces_locations)
                 else:
-                    p = np.zeros(len(self.emotion_labels))
-                video_emotions_stats[frames_counter] += p
-                total_prediction += p
+                    frame_prediction_norm = np.zeros(len(self.emotion_labels))
+                video_emotions_stats[frames_counter] += frame_prediction_norm
+                total_prediction += frame_prediction_norm
+                # print(f'{frames_counter} : frame_prediction: \t\t{p}')
                 
                 total_seconds = frames_counter / input_video_fps
                 h = int(total_seconds // 3600)
                 m = int((total_seconds % 3600) // 60)
                 s = int(total_seconds % 60)
                 ms = int((total_seconds - int(total_seconds)) * 1000)
-                csv_data.append([f"{h:02.0f}:{m:02.0f}:{s:02.0f}.{ms:03.0f}", frames_counter, *p])
+                csv_data.append([f"{h:02.0f}:{m:02.0f}:{s:02.0f}.{ms:03.0f}", frames_counter, *frame_prediction_norm])
                 
                 if int(frames_counter % input_video_fps) == 0:
                     # print(f'{frames_counter} кадров обработано')

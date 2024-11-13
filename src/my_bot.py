@@ -116,7 +116,7 @@ class MyBot:
                                           KeyboardButton(text=self.t_google_drive))
         
         
-        self.emotion_labels    = {0: "Гнев",  1: "Презрение", 2: "Отвращение", 3: "Страх", 4: "Счастье", 5: "Нейтральность", 6: "Грусть", 7: "Удивление"}
+        self.emotion_labels    = {0: "Злость",  1: "Презрение", 2: "Отвращение", 3: "Страх", 4: "Счастье", 5: "Нейтральность", 6: "Печаль", 7: "Удивление"}
         self.emotion_labels_en = {0: "anger", 1: "contempt",  2: "disgust",    3: "fear",  4: "happy",   5: "neutral",       6: "sad",    7: "surprise"}
 
 
