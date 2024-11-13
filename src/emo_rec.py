@@ -24,6 +24,9 @@ import csv
 from graphs import generate_emotion_map_html
 from graphs import generate_emotion_map_png
 
+import time
+
+
 
 def get_most_common_elem(arr):
     counter = Counter(arr)
@@ -308,6 +311,8 @@ class EmoRec:
             csv_data = [
                 ['Вермя (час:мин:сек.мс)', 'Кадр', *self.labels_ru]
             ]
+            
+            start_time = time.time()
 
             # Чтение и обработка кадров
             while True:
@@ -418,6 +423,11 @@ class EmoRec:
             traceback.print_exc()
                 
         finally:
+            end_time = time.time()
+            time_log = f"Время обработки видео из {all_frames_num} кадров: {(end_time - start_time):.2f} секунд." +\
+                    f" ({(end_time - start_time) / all_frames_num:.2f} секунд на кадр)"
+            print(time_log)
+            
             # Закрытие input и output файлов
             input_video.release()
             output_video.release()
