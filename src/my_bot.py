@@ -83,8 +83,6 @@ class MyBot:
         self.t_set_icons = "\U00002699 \U0001F60A Иконки смайлика"
         self.t_set_smile_size = "\U00002699 \U0001F60A Размер смайлика"
         self.t_set_alpha = "\U00002699 \U0001F60A Прозрачность смайлика"
-        self.t_set_face_sensitivity_photo = "\U00002699 \U0001F50D Сила поиска лиц на фото"
-        self.t_set_face_sensitivity_video = "\U00002699 \U0001F50D Силу поиска лиц на видео"
         
         self.t_location_receive_result = "\U000026F3 Способ получения видео"
         self.t_reset_google_drive = "\U0001F512 Войти/сменить аккаунт google drive"
@@ -102,8 +100,6 @@ class MyBot:
         self.keyboard_settings.add(KeyboardButton(text=self.t_set_icons))
         self.keyboard_settings.add(KeyboardButton(text=self.t_set_smile_size))
         self.keyboard_settings.add(KeyboardButton(text=self.t_set_alpha))
-        self.keyboard_settings.add(KeyboardButton(text=self.t_set_face_sensitivity_photo))
-        self.keyboard_settings.add(KeyboardButton(text=self.t_set_face_sensitivity_video))
         
         self.keyboard_settings.add(KeyboardButton(text=self.t_location_receive_result))
         self.keyboard_settings.add(KeyboardButton(text=self.t_reset_google_drive))
@@ -494,17 +490,6 @@ class MyBot:
                 f"Напишите целое число в пиксалях, которое будет использоваться для установки ширины и высоты смайлика", 
                 reply_markup=self.keyboard_settings)
 
-        if message.text == self.t_set_face_sensitivity_photo:
-            self.previous_command = self.t_set_face_sensitivity_photo
-            self.bot.send_message(message.chat.id, 
-                f"Напишите целое число от 1 до 30, устанавливающее чувствительность поиска лиц для фото (где 1 - много ложных срабатываний; 30 - недостаток детектирования; по умолчанию: для фото - 14", 
-                reply_markup=self.keyboard_settings)
-            
-        if message.text == self.t_set_face_sensitivity_video:
-            self.previous_command = self.t_set_face_sensitivity_video
-            self.bot.send_message(message.chat.id, 
-                f"Напишите целое число от 1 до 30, устанавливающее чувствительность поиска лиц для видео (где 1 - много ложных срабатываний; 30 - недостаток детектирования; по умолчанию: для видео - 12", 
-                reply_markup=self.keyboard_settings)
 
         if message.text == self.t_set_alpha:
             self.previous_command = self.t_set_alpha
@@ -519,17 +504,6 @@ class MyBot:
                     f"Установлен размер смайлика в {self.smile_size} пикселей", 
                     reply_markup=self.keyboard_settings)
                 
-            if self.previous_command == self.t_set_face_sensitivity_photo:
-                self.face_sensitivity_photo = int(message.text)
-                self.bot.send_message(message.chat.id, 
-                    f"Установлена чувствительность поиска лиц для фото = {self.face_sensitivity_photo}", 
-                    reply_markup=self.keyboard_settings)
-                
-            if self.previous_command == self.t_set_face_sensitivity_video:
-                self.face_sensitivity_video = int(message.text)
-                self.bot.send_message(message.chat.id, 
-                    f"Установлена чувствительность поиска лиц для видео = {self.face_sensitivity_video}", 
-                    reply_markup=self.keyboard_settings)
                 
             if self.previous_command == self.t_set_alpha:
                 self.alpha = float(message.text.replace(',', '.'))

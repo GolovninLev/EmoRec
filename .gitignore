@@ -3,6 +3,7 @@ diagrams
 
 models/archive
 models/emo_rec_model.pth
+models/haarcascade_frontalface_default.xml
 # models/k01.23_13-28-01.pth # resnet
 
 input

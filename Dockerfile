@@ -20,7 +20,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Копирование моделей в контейнер
-COPY ./models/haarcascade_frontalface_default.xml /models/haarcascade_frontalface_default.xml
+# COPY ./models/haarcascade_frontalface_default.xml /models/haarcascade_frontalface_default.xml
 COPY ./models/emo_rec_model.pth /models/emo_rec_model.pth
 COPY ./models/YOLO_face_model.pkl /models/YOLO_face_model.pkl
 
