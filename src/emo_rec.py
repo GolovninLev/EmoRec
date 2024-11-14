@@ -390,7 +390,7 @@ class EmoRec:
                             pred_soft = torch.softmax(torch.tensor(np.array(prediction[0])), dim=0).numpy()
                             frame_prediction_sum += pred_soft
                             
-                            print(f'\t{frames_counter} : one_face_pred: \t{pred_soft}')
+                            print(f'{frames_counter} / {all_frames_num}: \tone_face_pred: \t{pred_soft}')
                         
                         
                         result_emotion_label = self.emotion_labels[int(np.argmax(prediction))]
@@ -436,7 +436,7 @@ class EmoRec:
                     frame_prediction_norm = np.zeros(len(self.emotion_labels))
                 video_emotions_stats[frames_counter] += frame_prediction_norm
                 total_prediction += frame_prediction_norm
-                # print(f'{frames_counter} : frame_prediction: \t\t{p}')
+                print(f'{frames_counter} / {all_frames_num} : frame_prediction: \t\t{frame_prediction_norm}')
                 
                 total_seconds = frames_counter / input_video_fps
                 h = int(total_seconds // 3600)

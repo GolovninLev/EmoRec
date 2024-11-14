@@ -75,6 +75,9 @@ class MyBot:
         self.t_telegram = "Telegram"
         self.t_google_drive = "Google drive"
         
+        self.t_yolo = "YOLO"
+        self.t_Haar_cascades = "Каскады Хаара"
+        
         
         
         self.t_settings = "\U00002699 Настройки"
@@ -83,8 +86,9 @@ class MyBot:
         self.t_set_icons = "\U00002699 \U0001F60A Иконки смайлика"
         self.t_set_smile_size = "\U00002699 \U0001F60A Размер смайлика"
         self.t_set_alpha = "\U00002699 \U0001F60A Прозрачность смайлика"
-        self.t_set_face_sensitivity_photo = "\U00002699 \U0001F50D Сила поиска лиц на фото"
-        self.t_set_face_sensitivity_video = "\U00002699 \U0001F50D Силу поиска лиц на видео"
+        self.t_set_face_sensitivity_photo = "\U00002699 \U0001F50D Сила поиска лиц на фото (Хаар)"
+        self.t_set_face_sensitivity_video = "\U00002699 \U0001F50D Сила поиска лиц на видео (Хаар)"
+        self.t_set_face_find_model = "\U00002699 \U0001F50D Модель поиска лиц"
         
         self.t_location_receive_result = "\U000026F3 Способ получения видео"
         self.t_reset_google_drive = "\U0001F512 Войти/сменить аккаунт google drive"
@@ -102,6 +106,7 @@ class MyBot:
         self.keyboard_settings.add(KeyboardButton(text=self.t_set_icons))
         self.keyboard_settings.add(KeyboardButton(text=self.t_set_smile_size))
         self.keyboard_settings.add(KeyboardButton(text=self.t_set_alpha))
+        self.keyboard_settings.add(KeyboardButton(text=self.t_set_face_find_model))
         self.keyboard_settings.add(KeyboardButton(text=self.t_set_face_sensitivity_photo))
         self.keyboard_settings.add(KeyboardButton(text=self.t_set_face_sensitivity_video))
         
@@ -114,6 +119,10 @@ class MyBot:
         self.keyboard_shipping_method = ReplyKeyboardMarkup(resize_keyboard = True)
         self.keyboard_shipping_method.add(KeyboardButton(text=self.t_telegram), 
                                           KeyboardButton(text=self.t_google_drive))
+        
+        self.keyboard_find_face_model = ReplyKeyboardMarkup(resize_keyboard = True)
+        self.keyboard_find_face_model.add(KeyboardButton(text=self.t_yolo), 
+                                          KeyboardButton(text=self.t_Haar_cascades))
         
         
         self.emotion_labels    = {0: "Злость",  1: "Презрение", 2: "Отвращение", 3: "Страх", 4: "Счастье", 5: "Нейтральность", 6: "Печаль", 7: "Удивление"}
@@ -458,6 +467,11 @@ class MyBot:
             self.bot.send_message(message.chat.id, 
                 f"Выберите место получения видео", 
                 reply_markup=self.keyboard_shipping_method)
+        
+        if message.text == self.t_set_face_find_model:
+            self.bot.send_message(message.chat.id, 
+                f"Выберите модель для поиска лиц", 
+                reply_markup=self.keyboard_find_face_model)
 
 
         if message.text == self.t_reset_google_drive:
@@ -475,6 +489,18 @@ class MyBot:
             self.shipping_method = 'google_drive'
             self.bot.send_message(message.chat.id, 
                 f"Вы будете получать результаты обработки на ваш google drive (после авторизации)", 
+                reply_markup=self.keyboard_settings)
+        
+        if message.text == self.t_yolo:
+            self.emo_rec.face_finder_name = 'yolo'
+            self.bot.send_message(message.chat.id, 
+                f"Для поиска лиц выбрана модель yolo", 
+                reply_markup=self.keyboard_settings)
+            
+        if message.text == self.t_Haar_cascades:
+            self.emo_rec.face_finder_name = 't_Haar_cascades'
+            self.bot.send_message(message.chat.id, 
+                f"Для поиска лиц выбрана модель каскадов Хаара", 
                 reply_markup=self.keyboard_settings)
 
 
