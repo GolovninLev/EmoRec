@@ -43,7 +43,7 @@ class EmoRec:
         path_to_pr_model_photo = str(self.root_dir / 'models' / 'emo_rec_model.pth')
         path_to_pr_model_video = str(self.root_dir / 'models' / 'emo_rec_model.pth')
         
-        self.offset = 15
+        self.offset = 3
         
         self.image_transforms =  transforms.Compose([
                 transforms.ToPILImage(),            # Преобразование в PIL Image
