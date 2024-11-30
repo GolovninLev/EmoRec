@@ -42,4 +42,6 @@ RUN git clone https://github.com/ultralytics/ultralytics
 WORKDIR /ultralytics
 RUN pip install -e .
 
+
+WORKDIR /
 CMD ["python3", "/src/run.py"]
