@@ -43,7 +43,9 @@ class EmoRec:
         path_to_pr_model_photo = str(self.root_dir / 'models' / 'emo_rec_model.pth')
         path_to_pr_model_video = str(self.root_dir / 'models' / 'emo_rec_model.pth')
         
-        self.offset = 3
+        self.offset_photo = 15
+        self.photo_min_threshold = 0.15
+        self.video_min_threshold = 0.01
         
         self.image_transforms =  transforms.Compose([
                 transforms.ToPILImage(),            # Преобразование в PIL Image
@@ -211,10 +213,10 @@ class EmoRec:
             # Вырезание лица для передачи модели
             image_height, image_width = image.shape[:2]
             
-            x1 = max(0, x - self.offset)
-            y1 = max(0, y - self.offset)
-            x2 = min(image_width, x + w + self.offset)
-            y2 = min(image_height, y + h + self.offset)
+            x1 = max(0, x - self.offset_photo)
+            y1 = max(0, y - self.offset_photo)
+            x2 = min(image_width, x + w + self.offset_photo)
+            y2 = min(image_height, y + h + self.offset_photo)
             
             clipped_face_frame = image[y1:y2, x1:x2]
             
@@ -229,7 +231,7 @@ class EmoRec:
                 
                 sorted_emo = sorted(zip(self.emo_buttons, p), key=lambda x: x[1], reverse=True)
                 text_return = f'Распределение эмоций на фото ниже:\n'
-                text_return += '\n'.join([f'{label} - {(100 * prob):.0f}%' for label, prob in sorted_emo if prob > 0.1])
+                text_return += '\n'.join([f'{label} - {(100 * prob):.0f}%' for label, prob in sorted_emo if prob > self.photo_min_threshold])
                 
                 texts_return.append(text_return)
                 result_emotion_label = self.emotion_labels[int(np.argmax(prediction))]
@@ -484,7 +486,7 @@ class EmoRec:
             
             p = np.array(total_prediction) / np.sum(total_prediction)
             sorted_emo = sorted(zip(self.emo_buttons, p), key=lambda x: x[1], reverse=True)
-            text_return += '\n'.join([f'{label} - {(100 * prob):.0f}%:' for label, prob in sorted_emo if prob >= 0.01])
+            text_return += '\n'.join([f'{label} - {(100 * prob):.0f}%:' for label, prob in sorted_emo if prob >= self.video_min_threshold])
             
             csvfile = BytesIO()
             csvfile.write(b'')  # Очистить файл
