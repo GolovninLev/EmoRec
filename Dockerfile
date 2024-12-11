@@ -26,11 +26,6 @@ COPY ./models/YOLO_face_model.pkl /models/YOLO_face_model.pkl
 
 COPY ./emo_imgs /emo_imgs
 
-# Копирование кода в контейнер
-COPY ./src/emo_rec.py /src/emo_rec.py
-COPY ./src/my_bot.py /src/my_bot.py
-COPY ./src/graphs.py /src/graphs.py
-COPY ./src/run.py /src/run.py
 
 RUN mkdir /output
 RUN mkdir /.secrets
@@ -42,6 +37,11 @@ RUN git clone https://github.com/ultralytics/ultralytics
 WORKDIR /ultralytics
 RUN pip install -e .
 
-
 WORKDIR /
+# Копирование кода в контейнер
+COPY ./src/emo_rec.py /src/emo_rec.py
+COPY ./src/my_bot.py /src/my_bot.py
+COPY ./src/graphs.py /src/graphs.py
+COPY ./src/run.py /src/run.py
+
 CMD ["python3", "/src/run.py"]
